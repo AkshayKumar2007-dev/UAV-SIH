@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UAV Telemetry &amp; AI Flight Assistant</title>
+<style>
+  :root{
+    --bg:#0a0f1a; --panel:#111a2b; --panel2:#0d1524; --line:#1e2c45;
+    --txt:#cfe3ff; --dim:#6f86ab; --cyan:#39c2ff; --green:#3ecf6f;
+    --amber:#ffb02e; --red:#ff4d4d; --violet:#9d7bff;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg); color:var(--txt); font:13px/1.45 "Segoe UI",system-ui,sans-serif; padding:10px;}
+  .mono{font-family:Consolas,"Cascadia Mono",monospace;}
+  header{display:flex; align-items:center; gap:14px; background:var(--panel); border:1px solid var(--line);
+         border-radius:10px; padding:10px 14px; margin-bottom:10px; flex-wrap:wrap;}
+  header h1{font-size:16px; letter-spacing:.5px;}
+  .badge{font-size:10.5px; padding:3px 8px; border-radius:20px; border:1px solid var(--line); color:var(--dim); white-space:nowrap;}
+  .badge.ai{color:var(--violet); border-color:var(--violet); font-weight:600;}
+  #dot{width:10px; height:10px; border-radius:50%; background:var(--red); display:inline-block; margin-right:6px;}
+  #dot.on{background:var(--green); box-shadow:0 0 8px var(--green);}
+  .grow{flex:1;}
+  .chip{padding:4px 12px; border-radius:8px; font-weight:700; font-size:13px;}
+  .grid{display:grid; grid-template-columns:300px 1fr 340px; gap:10px;}
+  .col{display:flex; flex-direction:column; gap:10px; min-width:0;}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px;}
+  .panel h2{font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:var(--dim); margin-bottom:8px;}
+  canvas{display:block; width:100%; border-radius:8px; background:var(--panel2);}
+  .readouts{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px;}
+  .ro{background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:6px 9px;}
+  .ro .l{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.8px;}
+  .ro .v{font-size:19px; font-weight:700;}
+  .bar{height:7px; background:#0a111f; border-radius:4px; overflow:hidden; margin-top:5px;}
+  .bar>i{display:block; height:100%; width:0%; border-radius:4px; background:var(--green); transition:width .12s;}
+  .eng-row{display:grid; grid-template-columns:64px 1fr 74px; gap:8px; align-items:center; margin:7px 0;}
+  .eng-row .l{font-size:11px; color:var(--dim);}
+  .eng-row .v{text-align:right; font-weight:700;}
+  .sub-row{margin:8px 0;}
+  .sub-row .top{display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:3px;}
+  .ins-grid{display:grid; grid-template-columns:1fr 1fr; gap:6px;}
+  .sug{background:var(--panel2); border:1px solid var(--line); border-left:3px solid var(--cyan);
+       border-radius:8px; padding:8px 10px; margin-top:7px;}
+  .sug b{color:var(--cyan);}
+  .sug .d{color:var(--dim); font-size:12px; margin-top:2px;}
+  #alerts{max-height:180px; overflow-y:auto;}
+  .al{padding:5px 9px; margin:4px 0; border-radius:6px; background:var(--panel2); font-size:12.5px;}
+  .al.INFO{border-left:3px solid var(--cyan);} .al.WARN{border-left:3px solid var(--amber);}
+  .al.CRIT{border-left:3px solid var(--red); background:#2a1116;}
+  .al.RESOLVED{border-left:3px solid var(--green); background:#0f2c1a; color:#b8f0c9;}
+  .al .t{color:var(--dim); font-size:10.5px; margin-right:6px;}
+  .bottom{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;}
+  #chat{display:flex; flex-direction:column; height:280px;}
+  #msgs{flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:4px 2px;}
+  .msg{max-width:88%; padding:7px 11px; border-radius:10px; font-size:12.5px; white-space:pre-wrap;}
+  .msg.u{align-self:flex-end; background:#173a5e;}
+  .msg.a{align-self:flex-start; background:var(--panel2); border:1px solid var(--line);}
+  .msg.sys{align-self:center; color:var(--dim); font-size:11px;}
+  .chips{display:flex; gap:6px; flex-wrap:wrap; margin:7px 0;}
+  .chip2{font-size:11px; padding:3px 9px; border-radius:14px; border:1px solid var(--line);
+         color:var(--cyan); cursor:pointer; background:var(--panel2);}
+  .chip2:hover{border-color:var(--cyan);}
+  #inrow{display:flex; gap:7px;}
+  #q{flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--txt);
+     border-radius:8px; padding:8px 10px; outline:none;}
+  #send{background:#12466f; color:#fff; border:none; border-radius:8px; padding:8px 14px; cursor:pointer; font-weight:600;}
+  footer{color:var(--dim); font-size:11px; text-align:center; margin-top:10px;}
+  .viewbar{display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap;}
+  .vbtn{font-size:11px; padding:4px 12px; border-radius:7px; border:1px solid var(--line);
+        background:var(--panel2); color:var(--txt); cursor:pointer;}
+  .vbtn.active{border-color:var(--cyan); color:var(--cyan);}
+  .hint{font-size:10.5px; color:var(--dim);}
+  .tw-head{font-size:11px; font-weight:700; letter-spacing:1px; margin-bottom:8px; color:var(--violet);}
+  .tw-note{font-size:10px; color:var(--dim); margin-top:6px;}
+  #crashBanner{position:fixed; left:50%; top:36%; transform:translate(-50%,-50%); z-index:50;
+    background:rgba(130,10,10,.93); border:2px solid var(--red); border-radius:12px;
+    padding:18px 34px; text-align:center; display:none; box-shadow:0 0 60px rgba(255,40,40,.45);}
+  #crashBanner .big{font-size:26px; font-weight:800; letter-spacing:1.5px; color:#fff;}
+  #crashBanner .sub{color:#ffd6d6; margin-top:7px; font-size:14px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>UAV TELEMETRY <span style="color:var(--dim)">&amp;</span> AI ASSISTANT</h1>
+  <span><span id="dot"></span><span id="conn">CONNECTING…</span></span>
+  <span class="badge mono" id="clock">T+0s</span>
+  <span class="chip mono" id="mode" style="background:#3a2b10;color:var(--amber)">MANUAL</span>
+  <div class="grow"></div>
+  <span class="badge ai">AI: SUGGESTIONS ONLY — NO CONTROL LINK, NEVER OVERRIDES</span>
+  <span class="chip mono" id="ohs" style="background:#12320f;color:var(--green)">--</span>
+</header>
+
+<div class="grid">
+  <!-- LEFT: attitude + flight data -->
+  <div class="col">
+    <div class="panel">
+      <h2>Attitude</h2>
+      <canvas id="adi" width="560" height="560"></canvas>
+    </div>
+    <div class="panel">
+      <h2>Flight data</h2>
+      <div class="readouts">
+        <div class="ro"><div class="l">IAS</div><div class="v mono"><span id="ias">0</span> <small>kt</small></div></div>
+        <div class="ro"><div class="l">Alt MSL</div><div class="v mono"><span id="alt">0</span> <small>ft</small></div></div>
+        <div class="ro"><div class="l">V/S</div><div class="v mono"><span id="vs">0</span> <small>fpm</small></div></div>
+        <div class="ro"><div class="l">HDG</div><div class="v mono"><span id="hdg">000</span><small>°</small></div></div>
+        <div class="ro"><div class="l">AGL</div><div class="v mono"><span id="agl">0</span> <small>m</small></div></div>
+        <div class="ro"><div class="l">Gnd spd</div><div class="v mono"><span id="gs">0</span> <small>kt</small></div></div>
+      </div>
+      <div class="readouts">
+        <div class="ro"><div class="l">Throttle <span id="thr" class="mono">55%</span></div>
+          <div class="bar"><i id="thrbar"></i></div></div>
+        <div class="ro"><div class="l">AoA <span id="aoa" class="mono">0°</span></div>
+          <div class="bar"><i id="aoabar"></i></div></div>
+      </div>
+      <div class="mono" style="margin-top:8px;font-size:11.5px;color:var(--dim)">
+        Flaps <span id="flap">0°</span> · Gear <span id="gear">DOWN</span> ·
+        Carb ht <span id="carb">OFF</span> · Trim <span id="trim">-2.5°</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: 3D scene / 2D map -->
+  <div class="col">
+    <div class="panel" style="flex:1">
+      <div class="viewbar">
+        <button class="vbtn active" id="tab3d">3D SCENE</button>
+        <button class="vbtn" id="tab2d">2D MAP</button>
+        <button class="vbtn active" id="btnFollow">FOLLOW: ON</button>
+        <button class="vbtn" id="btnChase">CHASE CAM</button>
+        <button class="vbtn" id="btnReset">RESET VIEW</button>
+        <button class="vbtn" id="btnResetSim">RESET SIM</button>
+        <span class="hint">drag&nbsp;=&nbsp;orbit · wheel&nbsp;=&nbsp;zoom · right/shift-drag&nbsp;=&nbsp;pan</span>
+      </div>
+      <div id="wrap3d"><canvas id="view3d" width="1150" height="980"></canvas></div>
+      <div id="wrap2d" style="display:none">
+        <canvas id="map" width="1150" height="980"></canvas>
+      </div>
+      <div class="mono" id="mapinfo" style="margin-top:6px;font-size:11px;color:var(--dim)">
+        GPS -- · -- sats · HDOP --</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: engine, health, AI suggestions -->
+  <div class="col">
+    <div class="panel">
+      <h2>Engine (piston)</h2>
+      <div id="eng"></div>
+    </div>
+    <div class="panel">
+      <h2>Digital twin — engine estimator</h2>
+      <div id="twinpanel">
+        <div class="tw-head mono" id="twstatus">WAITING FOR TELEMETRY…</div>
+        <div class="eng-row"><span class="l">WEAR EST</span><div class="bar"><i id="twwear"></i></div><span class="v mono" id="twwearv">--</span></div>
+        <div class="eng-row"><span class="l">FOULING EST</span><div class="bar"><i id="twfoul"></i></div><span class="v mono" id="twfoulv">--</span></div>
+        <div class="eng-row"><span class="l">OIL HEALTH</span><div class="bar"><i id="twoil"></i></div><span class="v mono" id="twoilv">--</span></div>
+        <div class="eng-row"><span class="l">EFF. POWER</span><div class="bar"><i id="twpow"></i></div><span class="v mono" id="twpowv">--</span></div>
+        <div class="eng-row"><span class="l">PRED. FAILURE</span><div class="bar"><i id="twrulbar"></i></div><span class="v mono" id="twrul">--</span></div>
+        <div class="tw-note" id="twnote">estimates from noisy sensors only — never ground truth</div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>AI health monitor — subsystems</h2>
+      <div id="subs"></div>
+    </div>
+    <div class="panel">
+      <h2>Insights</h2>
+      <div class="ins-grid" id="ins"></div>
+    </div>
+    <div class="panel">
+      <h2>AI suggestions (text only — pilot decides &amp; acts)</h2>
+      <div id="sugs"><div class="sug" style="border-left-color:var(--dim)"><span class="d">No suggestions — all monitored parameters nominal.</span></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom">
+  <div class="panel">
+    <h2>Alerts</h2>
+    <div id="alerts"><div class="al INFO"><span class="t mono">--</span>Waiting for telemetry…</div></div>
+  </div>
+  <div class="panel" id="chat">
+    <h2>AI flight assistant — chat (questions only; it cannot command the UAV)</h2>
+    <div id="msgs">
+      <div class="msg a">AI assistant online. I watch your engine, fuel, flight envelope, navigation and
+sensors, and I answer with live data. Ask me anything — or tap a chip below.
+I only ever suggest: I have no link to the controls.</div>
+    </div>
+    <div class="chips">
+      <span class="chip2" data-q="status">status</span>
+      <span class="chip2" data-q="fuel and endurance">fuel / endurance</span>
+      <span class="chip2" data-q="engine">engine</span>
+      <span class="chip2" data-q="stall margin">stall margin</span>
+      <span class="chip2" data-q="wind">wind</span>
+      <span class="chip2" data-q="nfz">NFZ</span>
+      <span class="chip2" data-q="suggest">suggest</span>
+    </div>
+    <div id="inrow">
+      <input id="q" placeholder="Ask the assistant… (e.g. how much fuel to reach home?)">
+      <button id="send">Send</button>
+    </div>
+  </div>
+</div>
+
+<div id="crashBanner">
+  <div class="big">&#9992; CRASHED</div>
+  <div class="sub" id="crashReason"></div>
+  <div class="sub">Press R in the simulator window — or click RESET SIM — to fly again</div>
+</div>
+<footer>Piston-engine UAV simulator · telemetry streamed at 10 Hz over WebSocket · interactive 3D scene (software-rendered, offline) · the AI reads telemetry and answers/suggests — it is architecturally unable to actuate the aircraft.</footer>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const KT = 1.94384, FT = 3.28084, FPM = 196.85;
+let ws = null, hello = null, D = null;
+const track = [];                 // [n,e,up] history (metres, up = MSL-225)
+const alertSeen = new Map();      // id -> t_s
+let lastTs = null;                // detects simulator reset (t_s jumps back)
+const wsUrl = new URLSearchParams(location.search).get("ws") ||
+              "ws://" + (location.hostname || "127.0.0.1") + ":8765";
+
+function connect(){
+  $("conn").textContent = "CONNECTING…"; $("dot").classList.remove("on");
+  try{ ws = new WebSocket(wsUrl); }catch(e){ setTimeout(connect, 2500); return; }
+  ws.onopen = () => { $("conn").textContent = "LIVE"; $("dot").classList.add("on"); };
+  ws.onclose = () => { $("conn").textContent = "RECONNECTING…"; setTimeout(connect, 2000); };
+  ws.onerror = () => ws.close();
+  ws.onmessage = ev => {
+    let m; try{ m = JSON.parse(ev.data); }catch(e){ return; }
+    if(m.type === "hello"){ hello = m; }
+    else if(m.type === "telemetry"){ D = m.d; ingest(D); }
+    else if(m.type === "ai_reply"){ addMsg("a", m.answer); }
+  };
+}
+
+function ingest(d){
+  if(lastTs !== null && d.t_s < lastTs - 2){
+    // simulator was reset: clear flight history
+    track.length = 0;
+    alertSeen.clear();
+    $("alerts").innerHTML = "<div class='al INFO'><span class='t mono'>--</span>Simulator reset — waiting for telemetry…</div>";
+    sm.pos = null; sm.eul = null;
+  }
+  lastTs = d.t_s;
+  const p = d.state.pos_ned;
+  const up = (hello ? hello.home.alt_msl_m : 225) - p[2] - 225;
+  const last = track[track.length-1];
+  if(!last || Math.hypot(p[0]-last[0], p[1]-last[1]) > 2) track.push([p[0], p[1], up]);
+  if(track.length > 2500) track.shift();
+  (d.ai && d.ai.alerts || []).forEach(a => {
+    if(alertSeen.get(a.id) !== a.t_s){ alertSeen.set(a.id, a.t_s); pushAlert(a); }
+  });
+  render2D();
+  if($("wrap2d").style.display !== "none" && D){
+    drawMap(((D.state.euler[2]*57.2958)%360+360)%360);
+  }
+}
+
+function pushAlert(a){
+  const box = $("alerts");
+  if(box.querySelector(".al.INFO")) box.innerHTML = "";
+  const el = document.createElement("div");
+  el.className = "al " + a.sev;
+  el.innerHTML = `<span class="t mono">T+${a.t_s.toFixed(0)}s [${a.sev}]</span>${a.msg}`;
+  box.prepend(el);
+  while(box.children.length > 40) box.lastChild.remove();
+}
+
+/* ================= shared 2D panel rendering ================= */
+const colByScore = s => s >= 80 ? "var(--green)" : s >= 60 ? "var(--cyan)" : s >= 35 ? "var(--amber)" : "var(--red)";
+function barFrac(v, mn, mx){ return Math.max(0, Math.min(1, (v - mn) / (mx - mn))); }
+function engRow(label, val, frac, warnHigh, warnLow, unit){
+  let col = "var(--green)";
+  if(warnHigh && frac > 0.85) col = "var(--red)";
+  else if(warnLow && frac < 0.25) col = "var(--red)";
+  else if(frac > 0.72 || (warnLow && frac < 0.4)) col = "var(--amber)";
+  return `<div class="eng-row"><span class="l">${label}</span>
+    <div class="bar"><i style="width:${(frac*100).toFixed(1)}%;background:${col}"></i></div>
+    <span class="v mono">${val}${unit ? "<small> "+unit+"</small>" : ""}</span></div>`;
+}
+
+function render2D(){
+  if(!D) return;
+  const eu = D.state.euler;
+  const roll = eu[0]*57.2958, pitch = eu[1]*57.2958, hdg = ((eu[2]*57.2958)%360+360)%360;
+  const pit = D.pitot, gps = D.gps, eng = D.engine, es = D.engine_sensors, mc = D.manual_controls;
+  const ft = eng.faults || {};
+  const ec = (hello && hello.engine_cfg) ||
+             {fuel_full_L: 240, max_rpm: 5800, max_power_kw: 86, cht_max_c: 240, egt_max_c: 880};
+  const tw = D.twin || null;
+  if(tw){
+    const setb = (id, v, col) => { const el = $(id); if(el){ el.style.width = (v*100).toFixed(1)+"%"; el.style.background = col; }};
+    setb("twwear", (tw.wear_pct||0)/100, (tw.wear_pct||0) > 45 ? "var(--red)" : (tw.wear_pct||0) > 25 ? "var(--amber)" : "var(--green)");
+    setb("twfoul", (tw.fouling_pct||0)/100, (tw.fouling_pct||0) > 45 ? "var(--red)" : (tw.fouling_pct||0) > 25 ? "var(--amber)" : "var(--green)");
+    setb("twoil", (tw.oil_health_pct==null?100:tw.oil_health_pct)/100, (tw.oil_health_pct==null?100:tw.oil_health_pct) < 35 ? "var(--red)" : (tw.oil_health_pct||100) < 60 ? "var(--amber)" : "var(--green)");
+    setb("twpow", (tw.power_est_pct==null?100:tw.power_est_pct)/100, (tw.power_est_pct||100) < 70 ? "var(--amber)" : "var(--green)");
+    $("twwearv").textContent = (tw.wear_pct||0).toFixed(0)+"%";
+    $("twfoulv").textContent = (tw.fouling_pct||0).toFixed(0)+"%";
+    $("twoilv").textContent = (tw.oil_health_pct==null?100:tw.oil_health_pct).toFixed(0)+"%";
+    $("twpowv").textContent = (tw.power_est_pct==null?100:tw.power_est_pct).toFixed(0)+"%";
+    if(tw.rul_h != null){
+      $("twrul").textContent = tw.rul_h.toFixed(2)+" h ±"+Math.max(0,(tw.rul_hi||0)-tw.rul_h).toFixed(2);
+      $("twrulbar").style.width = Math.max(2, Math.min(100, tw.rul_h*80)).toFixed(0)+"%";
+      $("twrulbar").style.background = tw.rul_h < 0.5 ? "var(--red)" : tw.rul_h < 1.5 ? "var(--amber)" : "var(--green)";
+    } else {
+      $("twrul").textContent = "no active degradation";
+      $("twrulbar").style.width = "100%"; $("twrulbar").style.background = "var(--green)";
+    }
+    $("twstatus").textContent = tw.synced ? "TWIN SYNCED — confidence "+(tw.confidence*100).toFixed(0)+"%"
+                                          : "TWIN DIVERGENCE — sensor data suspect";
+    $("twstatus").style.color = tw.synced ? "var(--violet)" : "var(--red)";
+  }
+  const ai = D.ai || null;
+
+  $("clock").textContent = "T+" + D.t_s.toFixed(0) + "s";
+  const modeEl = $("mode");
+  modeEl.textContent = D.mode;
+  modeEl.style.background = D.mode === "MANUAL" ? "#3a2b10" : "#0f2c1a";
+  modeEl.style.color = D.mode === "MANUAL" ? "var(--amber)" : "var(--green)";
+
+  if(ai){
+    const ov = ai.overall, ohs = $("ohs");
+    ohs.textContent = ov.score.toFixed(0) + " " + ov.status;
+    ohs.style.color = colByScore(ov.score);
+    ohs.style.background = ov.score >= 60 ? "#0f2c1a" : ov.score >= 35 ? "#3a2b10" : "#2a1116";
+  }
+
+  $("ias").textContent = (pit.ias_mps*KT).toFixed(0);
+  $("alt").textContent = (pit.baro_alt_msl_m*FT).toFixed(0);
+  const vs = pit.vsi_mps*FPM;
+  $("vs").textContent = (vs>=0?"+":"") + vs.toFixed(0);
+  $("hdg").textContent = String(Math.round(hdg)).padStart(3,"0");
+  $("agl").textContent = D.agl_m.toFixed(0);
+  $("gs").textContent = (gps.groundspeed_mps*KT).toFixed(0);
+  $("thr").textContent = (mc.throttle*100).toFixed(0)+"%";
+  $("thrbar").style.width = (mc.throttle*100)+"%";
+  const aoa = (D.aero.alpha_rad||0)*57.2958;
+  $("aoa").textContent = aoa.toFixed(1)+"°";
+  $("aoabar").style.width = barFrac(Math.abs(aoa), 0, 15)*100+"%";
+  $("aoabar").style.background = Math.abs(aoa) > 12 ? "var(--red)" : Math.abs(aoa) > 9 ? "var(--amber)" : "var(--green)";
+  $("flap").textContent = mc.delta_flap_deg.toFixed(0)+"°";
+  $("gear").textContent = mc.gear_down ? "DOWN" : "UP";
+  $("carb").textContent = mc.carb_heat ? "ON" : "OFF";
+  $("trim").textContent = mc.delta_e_trim_deg.toFixed(1)+"°";
+
+  $("eng").innerHTML =
+    engRow("RPM",   es.rpm.toFixed(0),  barFrac(es.rpm, 0, ec.max_rpm), true, false) +
+    engRow("PWR",   eng.power_kw.toFixed(1), barFrac(eng.power_kw, 0, ec.max_power_kw), true, false, "kW") +
+    engRow("FUEL",  es.fuel_qty_L.toFixed(2), barFrac(es.fuel_qty_L, 0, ec.fuel_full_L), false, true, "L") +
+    engRow("FF",    es.fuel_flow_Lph.toFixed(2), barFrac(es.fuel_flow_Lph, 0, 12), true, false, "L/h") +
+    engRow("CHT",   es.cht_C.toFixed(0), barFrac(es.cht_C, 40, ec.cht_max_c), true, false, "°C") +
+    engRow("EGT",   es.egt_C.toFixed(0), barFrac(es.egt_C, 100, ec.egt_max_c), true, false, "°C") +
+    engRow("OIL",   es.oil_psi.toFixed(1), barFrac(es.oil_psi, 0, 90), false, true, "psi") +
+    engRow("STRESS", (ft.stress_pct||0).toFixed(0), barFrac(ft.stress_pct||0, 0, 100), true, false, "%") +
+    engRow("ICE",    (ft.ice_pct||0).toFixed(0),    barFrac(ft.ice_pct||0, 0, 100), true, false, "%") +
+    engRow("OIL QTY",(ft.oil_qty_pct==null?100:ft.oil_qty_pct).toFixed(0), barFrac(ft.oil_qty_pct==null?100:ft.oil_qty_pct, 0, 100), false, true, "%") +
+    (eng.health_flags.length ? `<div style="color:var(--red);font-size:11px;margin-top:4px">FLAGS: ${eng.health_flags.join(", ")}</div>` : "");
+
+  if(ai){
+    $("subs").innerHTML = Object.entries(ai.subsystems).map(([k, s]) => `
+      <div class="sub-row">
+        <div class="top"><span>${k.toUpperCase()}${s.notes.length ? " — <span style='color:var(--dim)'>"+s.notes.join(", ")+"</span>" : ""}</span>
+        <b style="color:${colByScore(s.score)}">${s.score.toFixed(0)} ${s.status}</b></div>
+        <div class="bar"><i style="width:${s.score}%;background:${colByScore(s.score)}"></i></div>
+      </div>`).join("");
+
+    const ins = ai.insights;
+    const fmt = (v, suf, dg=1) => v == null ? "--" : v.toFixed(dg)+suf;
+    $("ins").innerHTML = [
+      ["Endurance", ins.endurance_min == null ? "--" : fmt(ins.endurance_min, " min", 0)],
+      ["Range", ins.range_km == null ? "--" : fmt(ins.range_km, " km")],
+      ["Dist home", fmt(ins.dist_home_km, " km")],
+      ["Fuel → home", ins.fuel_home_L == null ? "--" :
+        fmt(ins.fuel_home_L, " L") + (ins.can_reach_home === false ? " ⚠" : "")],
+      ["Stall margin", fmt(ins.stall_margin_kt, " kt", 0)],
+      ["CHT trend", ins.cht_trend_c_per_min == null ? "--" :
+        (ins.cht_trend_c_per_min>=0?"+":"") + ins.cht_trend_c_per_min.toFixed(0) + " °C/min"],
+      ["Headwind", ins.headwind_mps == null ? "--" : fmt(Math.abs(ins.headwind_mps), " m/s") + (ins.headwind_mps > 0 ? " ▲" : " ▼")],
+      ["AGL", fmt(ins.agl_m, " m", 0)],
+    ].map(([l, v]) => `<div class="ro"><div class="l">${l}</div><div class="v mono" style="font-size:14px">${v}</div></div>`).join("");
+
+    if(ai.suggestions.length){
+      $("sugs").innerHTML = ai.suggestions.map(x =>
+        `<div class="sug"><b>${x.title}</b><div class="d">${x.detail}</div></div>`).join("");
+    } else {
+      $("sugs").innerHTML = `<div class="sug" style="border-left-color:var(--dim)"><span class="d">No suggestions — all monitored parameters nominal.</span></div>`;
+    }
+  }
+
+  const cr = D.crash;
+  $("crashBanner").style.display = (cr && cr.crashed) ? "block" : "none";
+  if(cr && cr.crashed) $("crashReason").textContent = cr.reason || "terrain impact";
+
+  $("mapinfo").textContent =
+    `GPS ${gps.health} · ${gps.satellites} sats · HDOP ${gps.hdop.toFixed(2)} · ` +
+    `lat ${gps.lat_deg.toFixed(5)} lon ${gps.lon_deg.toFixed(5)} · FPS ${D.fps.toFixed(0)}`;
+}
+
+/* ================= ADI ================= */
+function drawADI(roll, pitch){
+  const c = $("adi"), x = c.getContext("2d"), W = c.width, H = c.height;
+  const cx = W/2, cy = H/2, R = Math.min(W,H)/2 - 8;
+  x.clearRect(0,0,W,H);
+  x.save();
+  x.beginPath(); x.arc(cx, cy, R, 0, 7); x.clip();
+  const rp = pitch * 4.2;
+  x.translate(cx, cy); x.rotate(-roll*0.01745); x.translate(0, rp);
+  x.fillStyle = "#1b5ea8"; x.fillRect(-2*R, -2.5*R, 4*R, 2.5*R);
+  x.fillStyle = "#5d4a1e"; x.fillRect(-2*R, 0, 4*R, 2.5*R);
+  x.strokeStyle = "#fff"; x.lineWidth = 3;
+  x.beginPath(); x.moveTo(-2*R, 0); x.lineTo(2*R, 0); x.stroke();
+  x.lineWidth = 1.4; x.fillStyle = "#fff"; x.font = "16px Consolas"; x.textAlign = "center";
+  for(let pd = -40; pd <= 40; pd += 10){
+    if(pd === 0) continue;
+    const y = -pd*4.2, w = pd%20 === 0 ? 70 : 36;
+    x.beginPath(); x.moveTo(-w, y); x.lineTo(w, y); x.stroke();
+    if(pd%20 === 0) x.fillText(pd, w+22, y+6);
+  }
+  x.restore();
+  x.strokeStyle = "#22344f"; x.lineWidth = 4;
+  x.beginPath(); x.arc(cx, cy, R, 0, 7); x.stroke();
+  x.strokeStyle = "#cfe3ff";
+  for(let a = -60; a <= 60; a += 10){
+    const rad = (a-90)*0.01745, r1 = R-4, r2 = R - (a%30===0?18:11);
+    x.lineWidth = a%30===0 ? 2.5 : 1.2;
+    x.beginPath();
+    x.moveTo(cx + r1*Math.cos(rad), cy + r1*Math.sin(rad));
+    x.lineTo(cx + r2*Math.cos(rad), cy + r2*Math.sin(rad));
+    x.stroke();
+  }
+  x.save(); x.translate(cx, cy); x.rotate(-roll*0.01745);
+  x.fillStyle = "#ffb02e";
+  x.beginPath(); x.moveTo(0, -R+8); x.lineTo(-8, -R+24); x.lineTo(8, -R+24); x.closePath(); x.fill();
+  x.restore();
+  x.strokeStyle = "#ffd24a"; x.lineWidth = 5; x.lineCap = "round";
+  x.beginPath(); x.moveTo(cx-62, cy); x.lineTo(cx-18, cy); x.lineTo(cx-10, cy+8); x.stroke();
+  x.beginPath(); x.moveTo(cx+62, cy); x.lineTo(cx+18, cy); x.lineTo(cx+10, cy+8); x.stroke();
+  x.fillStyle = "#ffd24a"; x.fillRect(cx-4, cy-3, 8, 6);
+  x.fillStyle = "#cfe3ff"; x.font = "15px Consolas"; x.textAlign = "left";
+  x.fillText(`φ ${roll.toFixed(0)}°  θ ${pitch.toFixed(0)}°`, 10, 20);
+  drawADI.live = [roll, pitch];
+}
+drawADI.live = [0, 0];
+
+/* ================= 2D MAP (tab) ================= */
+let terrainImg = null;
+const TERR_N = 150, TERR_HALF = 14000;
+function buildTerrainImage(){
+  if(terrainImg || !hello || !hello.world) return;
+  const c = document.createElement("canvas");
+  c.width = TERR_N; c.height = TERR_N;
+  const g = c.getContext("2d");
+  const img = g.createImageData(TERR_N, TERR_N);
+  const step = 2*TERR_HALF/(TERR_N-1);
+  for(let i = 0; i < TERR_N; i++){          // row 0 = north edge
+    const n = TERR_HALF - i*step;
+    for(let j = 0; j < TERR_N; j++){
+      const e = -TERR_HALF + j*step;
+      const h = T3.terrAlt(n, e);           // height above base (m)
+      let r, g2, b;
+      if(h < 8)       { r=52;  g2=94;  b=48; }
+      else if(h < 60) { const t=(h-8)/52;  r=52+t*58;  g2=94+t*16; b=48+t*12; }
+      else if(h < 160){ const t=(h-60)/100; r=110+t*20; g2=110-t*12; b=60+t*28; }
+      else if(h < 300){ const t=(h-160)/140; r=130+t*45; g2=98+t*34; b=88+t*38; }
+      else            { const t=Math.min(1,(h-300)/130); r=205+t*40; g2=205+t*45; b=210+t*45; }
+      const k = (i*TERR_N + j)*4;
+      img.data[k] = r; img.data[k+1] = g2; img.data[k+2] = b; img.data[k+3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  terrainImg = c;
+}
+function drawMap(hdg){
+  const c = $("map"), x = c.getContext("2d"), W = c.width, H = c.height;
+  x.clearRect(0,0,W,H);
+  x.fillStyle = "#0d1524"; x.fillRect(0,0,W,H);
+  const pts = [[0,0], ...track];
+  (hello ? hello.nfz_all : []).forEach(z => pts.push([z.center_ned[0], z.center_ned[1]]));
+  (hello && hello.world ? hello.world.mountains : []).forEach(m => pts.push([m.n, m.e]));
+  (D.mission_items||[]).forEach(w => pts.push([w.n_m, w.e_m]));
+  let n0=1e9, n1=-1e9, e0=1e9, e1=-1e9;
+  pts.forEach(([n,e]) => { n0=Math.min(n0,n); n1=Math.max(n1,n); e0=Math.min(e0,e); e1=Math.max(e1,e); });
+  const pad = 90;
+  const sc = Math.max(0.012, Math.min(0.2, Math.min((W-2*pad)/Math.max(e1-e0,300), (H-2*pad)/Math.max(n1-n0,300))));
+  const cn = (n0+n1)/2, ce = (e0+e1)/2, cx = W/2, cy = H/2;
+  const px = (n,e) => [cx + (e-ce)*sc, cy - (n-cn)*sc];
+
+  x.strokeStyle = "#16233a"; x.setLineDash([5,6]); x.lineWidth = 1;
+  [500, 1000, 2000].forEach(r => {
+    x.beginPath(); x.arc(cx, cy, r*sc, 0, 7); x.stroke();
+    x.fillStyle = "#2c3f5e"; x.font = "12px Consolas"; x.textAlign = "center";
+    x.fillText(r/1000 + " km", cx, cy - r*sc - 4);
+  });
+  x.setLineDash([]);
+
+  // terrain heightmap
+  if(!terrainImg && hello && hello.world) buildTerrainImage();
+  if(terrainImg){
+    const dx = cx + (-TERR_HALF - ce)*sc, dy = cy - (TERR_HALF - cn)*sc;
+    x.imageSmoothingEnabled = true;
+    x.drawImage(terrainImg, dx, dy, 2*TERR_HALF*sc, 2*TERR_HALF*sc);
+  }
+
+  // lake
+  const lk = hello && hello.world && hello.world.lake;
+  if(lk){
+    const [lx, ly] = px(lk.n, lk.e);
+    x.fillStyle = "#2a6ea8"; x.beginPath(); x.arc(lx, ly, lk.radius_m*sc, 0, 7); x.fill();
+  }
+  // roads
+  x.strokeStyle = "#565a62"; x.lineWidth = Math.max(1.2, 7*sc);
+  for(const road of (hello && hello.world ? hello.world.roads : [])){
+    x.beginPath();
+    road.forEach(([rn, re], i) => { const [sx, sy] = px(rn, re); i ? x.lineTo(sx, sy) : x.moveTo(sx, sy); });
+    x.stroke();
+  }
+
+  // mountain summits
+  (hello && hello.world ? hello.world.mountains : []).forEach(m => {
+    const [sx, sy] = px(m.n, m.e);
+    x.fillStyle = "#e8dcc0";
+    x.beginPath(); x.moveTo(sx, sy-7); x.lineTo(sx-6, sy+4); x.lineTo(sx+6, sy+4);
+    x.closePath(); x.fill();
+    x.font = "12px Consolas"; x.textAlign = "center";
+    x.fillText(`▲ ${m.h_m.toFixed(0)} m`, sx, sy + 18);
+  });
+
+  (hello ? hello.nfz_all : []).forEach(z => {
+    const [sx, sy] = px(z.center_ned[0], z.center_ned[1]);
+    const r = z.radius_m * sc;
+    x.fillStyle = "rgba(220,60,60,.13)"; x.beginPath(); x.arc(sx, sy, r, 0, 7); x.fill();
+    x.strokeStyle = "rgba(255,80,80,.8)"; x.lineWidth = 2; x.stroke();
+    x.fillStyle = "#ff9090"; x.font = "13px Consolas"; x.textAlign = "center";
+    x.fillText(z.name, sx, sy - r - 6);
+  });
+
+  if(track.length > 1){
+    x.strokeStyle = "#39c2ff"; x.lineWidth = 2.2; x.beginPath();
+    track.forEach(([n,e], i) => { const [sx,sy] = px(n,e); i ? x.lineTo(sx,sy) : x.moveTo(sx,sy); });
+    x.stroke();
+  }
+
+  const wps = D.mission_items || [];
+  if(wps.length > 1){
+    x.strokeStyle = "#4a5d7d"; x.setLineDash([7,6]); x.lineWidth = 1.6; x.beginPath();
+    wps.forEach((w,i) => { const [sx,sy] = px(w.n_m,w.e_m); i ? x.lineTo(sx,sy) : x.moveTo(sx,sy); });
+    x.stroke(); x.setLineDash([]);
+  }
+  wps.forEach((w, i) => {
+    const [sx, sy] = px(w.n_m, w.e_m);
+    const cur = i === D.mission_current_idx, done = D.mission_captured && D.mission_captured[i];
+    x.fillStyle = done ? "#3ecf6f" : "#5b8cff";
+    x.fillRect(sx-5, sy-5, 10, 10);
+    if(cur){ x.strokeStyle = "#ffd24a"; x.lineWidth = 2.5; x.beginPath(); x.arc(sx, sy, 12, 0, 7); x.stroke(); }
+    x.fillStyle = "#cfe3ff"; x.font = "13px Consolas"; x.textAlign = "left";
+    x.fillText(String(i+1), sx+9, sy-8);
+  });
+
+  const [hx, hy] = px(0, 0);
+  x.fillStyle = "#ff7b7b"; x.beginPath();
+  x.moveTo(hx, hy-11); x.lineTo(hx-9, hy+8); x.lineTo(hx+9, hy+8); x.closePath(); x.fill();
+  x.fillStyle = "#fff"; x.font = "bold 11px Consolas"; x.textAlign = "center"; x.fillText("H", hx, hy+6);
+
+  const [ax, ay] = px(D.state.pos_ned[0], D.state.pos_ned[1]);
+  x.save(); x.translate(ax, ay); x.rotate(hdg*0.01745);
+  x.fillStyle = "#ffd24a"; x.beginPath();
+  x.moveTo(0,-15); x.lineTo(-9,12); x.lineTo(0,6); x.lineTo(9,12); x.closePath(); x.fill();
+  x.restore();
+  x.strokeStyle = "rgba(255,210,74,.5)"; x.setLineDash([3,5]);
+  x.beginPath(); x.moveTo(ax, ay); x.lineTo(ax + 70*Math.sin(hdg*0.01745), ay - 70*Math.cos(hdg*0.01745)); x.stroke();
+  x.setLineDash([]);
+
+  const barM = sc > 0.08 ? 500 : 2000, barPx = barM*sc;
+  x.strokeStyle = "#cfe3ff"; x.lineWidth = 3; x.beginPath();
+  x.moveTo(20, H-24); x.lineTo(20+barPx, H-24); x.stroke();
+  x.fillStyle = "#cfe3ff"; x.font = "12px Consolas"; x.textAlign = "left";
+  x.fillText(barM + " m", 22, H-32);
+  x.fillStyle = "#ff9090"; x.font = "bold 15px Consolas"; x.fillText("N ↑", 20, 26);
+}
+
+/* =================================================================
+   3D SCENE — software renderer on 2D canvas (no dependencies)
+   World frame: x = East, y = Up, z = North.  Altitudes relative to 225 m.
+   ================================================================= */
+const T3 = (() => {
+  const BASE = 225, BUMPS = 35, RAD = 6000;
+  function terrAlt(n, e){
+    const r = Math.hypot(n, e) / RAD;
+    const bowl = BUMPS*0.6*Math.pow(Math.max(r-0.4, 0), 2);
+    const h1 = BUMPS*0.55*Math.sin(n*0.0012+0.4)*Math.cos(e*0.0015-0.1);
+    const h2 = BUMPS*0.35*Math.sin(n*0.004+1.8)*Math.cos(e*0.003+0.7);
+    const h3 = BUMPS*0.22*Math.sin((n+e)*0.0028+2.3);
+    return BASE + bowl + h1 + h2 + h3 - BASE;
+  }
+
+  // ---- terrain mesh (full sim world: ±6 km) — built lazily once hello arrives ----
+  const HALF = 12000, NG = 108;
+  const STEP = 2*HALF/(NG-1);
+  const verts = [];           // [x(E), y(Up), z(N)]
+  const quads = [];           // {ids:[4], col, mid}
+  const vidx = (i, j) => i*NG + j;
+  let terrainBuilt = false;
+  let P = new Float64Array(0);   // projection buffer, sized with the mesh
+  function buildTerrainMesh(){
+    if(terrainBuilt) return;
+    terrainBuilt = true;
+    verts.length = 0; quads.length = 0;
+    for(let i = 0; i < NG; i++)
+      for(let j = 0; j < NG; j++){
+        const n = -HALF + i*STEP, e = -HALF + j*STEP;
+        verts.push([e, terrAlt(n, e), n]);
+      }
+    P = new Float64Array(3*verts.length);
+    buildTerrainQuads();
+  }
+  function buildTerrainQuads(){
+    const idx = [];
+    for(let i = 0; i < NG-1; i++)
+      for(let j = 0; j < NG-1; j++)
+        idx.push([vidx(i,j), vidx(i,j+1), vidx(i+1,j+1), vidx(i+1,j)]);
+    quads.length = 0;
+    for(const [ia, ib, ic, id_] of idx){
+      const a = verts[ia], b = verts[ib], c = verts[ic], d = verts[id_];
+      // normal + light (static); North × East → Up-pointing normal
+      const u = [b[0]-a[0], b[1]-a[1], b[2]-a[2]], v = [d[0]-a[0], d[1]-a[1], d[2]-a[2]];
+      let nx = -(u[1]*v[2]-u[2]*v[1]), ny = -(u[2]*v[0]-u[0]*v[2]), nz = -(u[0]*v[1]-u[1]*v[0]);
+      const nl = Math.hypot(nx, ny, nz) || 1; nx/=nl; ny/=nl; nz/=nl;
+      const ndl = Math.max(0, nx*(-0.45) + ny*0.82 + nz*0.36);
+      const h = (a[1]+b[1]+c[1]+d[1])/4;
+      const t = Math.max(0, Math.min(1, (h+28)/110));
+      const sh = 0.62 + 0.5*ndl;
+      const snow = Math.min(1, Math.max(0, (h-300)/90));
+      const rC = Math.round(((46 + t*(130-46))*sh)*(1-snow) + 236*snow),
+            gC = Math.round(((74 + t*(128-74))*sh)*(1-snow) + 240*snow),
+            bC = Math.round(((46 + t*(88-46))*sh)*(1-snow) + 246*snow);
+      quads.push({ids:[ia, ib, ic, id_],
+                  col:`rgb(${rC},${gC},${bC})`,
+                  mid:[(a[0]+c[0])/2, (a[1]+c[1])/2, (a[2]+c[2])/2]});
+    }
+  }
+
+  // ---- UAV model (body: x fwd, y right, z DOWN per aero convention), scaled ~8x ----
+  // NOTE: box() takes z as "up-positive" design coords and negates it, because
+  // the body frame's z axis points DOWN. Face winding is reversed to match.
+  const MSCALE = 8;
+  function box(x0,x1,y0,y1,z0,z1, col){
+    const n0 = -z1, n1 = -z0;
+    const v = [
+      [x0*MSCALE,y0*MSCALE,n0*MSCALE],[x1*MSCALE,y0*MSCALE,n0*MSCALE],
+      [x1*MSCALE,y1*MSCALE,n0*MSCALE],[x0*MSCALE,y1*MSCALE,n0*MSCALE],
+      [x0*MSCALE,y0*MSCALE,n1*MSCALE],[x1*MSCALE,y0*MSCALE,n1*MSCALE],
+      [x1*MSCALE,y1*MSCALE,n1*MSCALE],[x0*MSCALE,y1*MSCALE,n1*MSCALE]];
+    const f = [[3,2,1,0],[7,6,5,4],[4,5,1,0],[5,6,2,1],[6,7,3,2],[7,4,0,3]];
+    return f.map(q => ({v:q.map(k => v[k]), col}));
+  }
+  const MODEL = [
+    ...box( 1.9,-1.9,-0.32,0.32,-0.30,0.30, "#e0931f"),   // fuselage
+    ...box( 0.45,-0.35,-1.85,1.85,-0.06,0.10, "#ffb02e"), // wing
+    ...box(-1.65,-2.25,-0.75,0.75, 0.28,0.40, "#ffb02e"), // h-tail
+    ...box(-1.70,-2.30,-0.05,0.05, 0.30,1.05, "#d2861a"), // v-tail
+    ...box( 2.35, 1.60,-0.10,0.10,-0.10,0.10, "#7c5510"), // spinner
+  ];
+
+  // ---- camera + input ----
+  const cam = { yaw: 0.55, pit: 0.62, dist: 2400, tx: 0, ty: 60, tz: 0 };
+  let follow = true, _chase = false;
+  function resetView(){ cam.yaw = 0.55; cam.pit = 0.62; cam.dist = 2400; cam.tx = 0; cam.ty = 60; cam.tz = 0; follow = true; syncFollowBtn(); syncChaseBtn(); }
+  function syncFollowBtn(){
+    const b = $("btnFollow");
+    if(b){ b.textContent = "FOLLOW: " + (follow ? "ON" : "OFF");
+           b.classList.toggle("active", follow); }
+  }
+  function syncChaseBtn(){
+    const b = $("btnChase");
+    if(b){ b.textContent = "CHASE CAM" + (_chase ? " ●" : "");
+           b.classList.toggle("active", _chase); }
+  }
+  function userTakesCam(){ if(_chase){ _chase = false; syncChaseBtn(); } }
+
+  // ---- frame transform ----
+  let f = 1, cxs = 0, cys = 0;
+  function projectAll(){
+    const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+    const cp = Math.cos(cam.pit), sp = Math.sin(cam.pit);
+    for(let i = 0; i < verts.length; i++){
+      const v = verts[i];
+      const dx = v[0]-cam.tx, dy = v[1]-cam.ty, dz = v[2]-cam.tz;
+      const x1 = cy*dx - sy*dz, z1 = sy*dx + cy*dz;
+      const y2 = cp*dy + sp*z1, z2 = -sp*dy + cp*z1;
+      const depth = cam.dist + z2;
+      const k = i*3;
+      if(depth < 30){ P[k] = NaN; P[k+1] = NaN; P[k+2] = depth; continue; }
+      P[k] = cxs + f*x1/depth; P[k+1] = cys - f*y2/depth; P[k+2] = depth;
+    }
+  }
+  function projPoint(p){
+    const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+    const cp = Math.cos(cam.pit), sp = Math.sin(cam.pit);
+    const dx = p[0]-cam.tx, dy = p[1]-cam.ty, dz = p[2]-cam.tz;
+    const x1 = cy*dx - sy*dz, z1 = sy*dx + cy*dz;
+    const y2 = cp*dy + sp*z1, z2 = -sp*dy + cp*z1;
+    const depth = cam.dist + z2;
+    if(depth < 30) return null;
+    return [cxs + f*x1/depth, cys - f*y2/depth, depth];
+  }
+
+  function rotBodyToWorld(eul){
+    const phi = eul[0], th = eul[1], psi = eul[2];
+    const cph = Math.cos(phi), sph = Math.sin(phi);
+    const cth = Math.cos(th), sth = Math.sin(th);
+    const cps = Math.cos(psi), sps = Math.sin(psi);
+    // v_ned = Rz(psi)·Ry(theta)·Rx(phi) · v_body ; display [E,Up,N] = [v1, -v2, v0]
+    const R = [
+      [cth*cps, sph*sth*cps - cph*sps, cph*sth*cps + sph*sps],
+      [cth*sps, sph*sth*sps + cph*cps, cph*sth*sps - sph*cps],
+      [-sth,    sph*cth,               cph*cth]];
+    return v => {
+      const n0 = R[0][0]*v[0] + R[0][1]*v[1] + R[0][2]*v[2];
+      const n1 = R[1][0]*v[0] + R[1][1]*v[1] + R[1][2]*v[2];
+      const n2 = R[2][0]*v[0] + R[2][1]*v[1] + R[2][2]*v[2];
+      return [n1, -n2, n0];
+    };
+  }
+
+  function poly(x, pts2d, col, stroke){
+    x.beginPath();
+    x.moveTo(pts2d[0][0], pts2d[0][1]);
+    for(let i = 1; i < pts2d.length; i++) x.lineTo(pts2d[i][0], pts2d[i][1]);
+    x.closePath();
+    x.fillStyle = col; x.fill();
+    if(stroke){ x.strokeStyle = stroke; x.lineWidth = 1; x.stroke(); }
+  }
+
+  // ---- airport + scenery geometry (built once from hello.world) ----
+  let sceneBuilt = false, sceneFaces = [], trees3 = [], runwayPoly = null,
+      runwayDashes = [], towerQuads = [], towerTop = null,
+      lakePoly = null, roadQuads = [];
+  function buildScene(){
+    if(sceneBuilt || !hello || !hello.world) return;
+    sceneBuilt = true;
+    const w = hello.world, ap = w.airport || {};
+    const rw = ap.runway;
+    if(rw){
+      const flat = terrAlt(0,0) + 0.25, hw = rw.width_m/2, hl = rw.length_m/2;
+      runwayPoly = {pts: [[rw.e-hw, flat, rw.n-hl],[rw.e+hw, flat, rw.n-hl],
+                          [rw.e+hw, flat, rw.n+hl],[rw.e-hw, flat, rw.n+hl]], col: "#3a3c42"};
+      for(let k=-4;k<=4;k++){ const n0 = k*80-20;
+        runwayDashes.push([[rw.e, flat+0.05, n0],[rw.e, flat+0.05, n0+40]]); }
+    }
+    const boxes = [];
+    if(ap.hangar) boxes.push({n: ap.hangar.n, e: ap.hangar.e, w_m: ap.hangar.w_m,
+                              d_m: ap.hangar.d_m, h_m: ap.hangar.h_m, col: [150,158,170]});
+    for(const b of w.buildings||[]) boxes.push({...b, col: [168,150,128]});
+    for(const b of boxes){
+      const base = terrAlt(b.n, b.e), z0 = base, z1 = base + b.h_m;
+      const e0=b.e-b.w_m/2, e1=b.e+b.w_m/2, n0=b.n-b.d_m/2, n1=b.n+b.d_m/2;
+      const v = [[e0,z0,n0],[e1,z0,n0],[e1,z0,n1],[e0,z0,n1],
+                 [e0,z1,n0],[e1,z1,n0],[e1,z1,n1],[e0,z1,n1]];
+      const fs = [[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]];
+      for(const q of fs){
+        const pts = q.map(i=>v[i]);
+        const u=[pts[1][0]-pts[0][0],pts[1][1]-pts[0][1],pts[1][2]-pts[0][2]];
+        const vv=[pts[3][0]-pts[0][0],pts[3][1]-pts[0][1],pts[3][2]-pts[0][2]];
+        let nx=u[1]*vv[2]-u[2]*vv[1], ny=u[2]*vv[0]-u[0]*vv[2], nz=u[0]*vv[1]-u[1]*vv[0];
+        const nl=Math.hypot(nx,ny,nz)||1;
+        const lam=0.62+0.38*Math.max(0,(nx*(-0.45)+ny*0.82+nz*0.36)/nl);
+        sceneFaces.push({pts, col: [Math.round(b.col[0]*lam), Math.round(b.col[1]*lam),
+                                    Math.round(b.col[2]*lam)]});
+      }
+    }
+    const tw = ap.tower;
+    if(tw){
+      const tb = terrAlt(tw.n, tw.e), segs = 10, z0 = tb, z1 = tb + tw.h_m*0.62;
+      const ring0=[], ring1=[];
+      for(let s=0;s<segs;s++){ const a=2*Math.PI*s/segs;
+        ring0.push([tw.e+Math.cos(a)*tw.radius_m, z0, tw.n+Math.sin(a)*tw.radius_m]);
+        ring1.push([tw.e+Math.cos(a)*tw.radius_m*1.5, z1, tw.n+Math.sin(a)*tw.radius_m*1.5]); }
+      for(let s=0;s<segs;s++){ const s2=(s+1)%segs;
+        towerQuads.push([ring0[s],ring0[s2],ring1[s2],ring1[s]]); }
+      const z2 = z1 + tw.h_m*0.38, cw = tw.radius_m*1.6;
+      const v = [[tw.e-cw,z1,tw.n-cw],[tw.e+cw,z1,tw.n-cw],[tw.e+cw,z1,tw.n+cw],[tw.e-cw,z1,tw.n+cw],
+                 [tw.e-cw,z2,tw.n-cw],[tw.e+cw,z2,tw.n-cw],[tw.e+cw,z2,tw.n+cw],[tw.e-cw,z2,tw.n+cw]];
+      for(const q of [[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]])
+        towerQuads.push(q.map(i=>v[i]));
+      towerTop = [tw.e, z2 + 4, tw.n];
+    }
+    for(const t of w.trees||[]){
+      const base = terrAlt(t.n, t.e);
+      trees3.push({e: t.e, n: t.n, b: base, tp: base + t.h_m, r: t.r_m});
+    }
+    if(w.lake){
+      const lvl = terrAlt(w.lake.n, w.lake.e) + 0.3;
+      lakePoly = [];
+      for(let s2 = 0; s2 < 24; s2++){
+        const a = 2*Math.PI*s2/24;
+        lakePoly.push([w.lake.e + Math.cos(a)*w.lake.radius_m*0.98, lvl, w.lake.n + Math.sin(a)*w.lake.radius_m*0.98]);
+      }
+    }
+    for(const road of w.roads || []){
+      for(let k = 0; k < road.length-1; k++){
+        const n0 = road[k][0], e0 = road[k][1], n1 = road[k+1][0], e1 = road[k+1][1];
+        const segLen = Math.hypot(n1-n0, e1-e0), steps = Math.max(1, Math.round(segLen/110));
+        const dn = (n1-n0)/segLen, de = (e1-e0)/segLen, pn = -de, pe = dn;
+        for(let s2 = 0; s2 < steps; s2++){
+          const a0 = s2/steps, a1 = (s2+1)/steps;
+          const na = n0+(n1-n0)*a0, ea = e0+(e1-e0)*a0, nb = n0+(n1-n0)*a1, eb = e0+(e1-e0)*a1;
+          const za = terrAlt(na, ea)+0.25, zb = terrAlt(nb, eb)+0.25;
+          roadQuads.push([[ea+pe*3.5, za, na+pn*3.5],[eb+pe*3.5, zb, nb+pn*3.5],
+                          [eb-pe*3.5, zb, nb-pn*3.5],[ea-pe*3.5, za, na-pn*3.5]]);
+        }
+      }
+    }
+  }
+
+  function draw(canvas, acPos, acEul, wps, wpsCap, wpsCur, nfzs, tUpd){
+    if(hello && hello.world && !terrainBuilt) buildTerrainMesh();
+    const x = canvas.getContext("2d"), W = canvas.width, H = canvas.height;
+    cxs = W/2; cys = H/2;
+    f = 0.5*Math.min(W, H) / Math.tan(30*0.01745);
+    x.clearRect(0, 0, W, H);
+    // sky gradient
+    const sky = x.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, "#0c1830"); sky.addColorStop(0.55, "#12233f"); sky.addColorStop(1, "#0b1524");
+    x.fillStyle = sky; x.fillRect(0, 0, W, H);
+
+    if(follow && acPos){ cam.tx += (acPos[0]-cam.tx)*0.12; cam.ty += (Math.max(acPos[1], 15)-cam.ty)*0.12; cam.tz += (acPos[2]-cam.tz)*0.12; }
+
+    projectAll();
+    const drawList = [];
+
+    // terrain quads
+    for(const q of quads){
+      const ids = q.ids;
+      let dsum = 0, ok = true;
+      for(const id of ids){ const d = P[id*3+2]; if(Number.isNaN(P[id*3])) { ok = false; break; } dsum += d; }
+      if(ok && dsum/4 > 9500) continue;
+      if(!ok) continue;
+      const dAvg = dsum/4;
+      if(dAvg > 11000 || dAvg < 20) continue;
+      const pts = [];
+      let off = 0;
+      for(const id of ids){
+        const sx = P[id*3], sy = P[id*3+1];
+        if(sx < -80 || sx > W+80 || sy < -80 || sy > H+80){ off++; }
+        pts.push([sx, sy]);
+      }
+      if(off === 4) continue;
+      drawList.push({d: dAvg, fn: () => poly(x, pts, q.col)});
+    }
+
+    // NFZ cylinders
+    for(const z of (nfzs || [])){
+      const [cn0, ce0] = z.center_ned;
+      const segs = 22, r = z.radius_m;
+      const zb = terrAlt(cn0, ce0) - 4, zt = Math.max(z.ceil_m - BASE, zb + 60);
+      const ringB = [], ringT = [];
+      for(let s = 0; s < segs; s++){
+        const a = s/segs*Math.PI*2, wn = Math.sin(a)*r, we = Math.cos(a)*r;
+        ringB.push(projPoint([ce0+we, zb, cn0+wn]));
+        ringT.push(projPoint([ce0+we, zt, cn0+wn]));
+      }
+      for(let s = 0; s < segs; s++){
+        const s2 = (s+1)%segs, b1 = ringB[s], b2 = ringB[s2], t1 = ringT[s], t2 = ringT[s2];
+        if(!b1 || !b2 || !t1 || !t2) continue;
+        const d = (b1[2]+b2[2]+t1[2]+t2[2])/4;
+        const pts = [b1, b2, t2, t1].map(p => [p[0], p[1]]);
+        drawList.push({d, fn: () => poly(x, pts, "rgba(255,70,70,.10)", "rgba(255,90,90,.55)")});
+      }
+      const top = projPoint([ce0, zt, cn0]);
+      if(top){
+        const name = z.name || "NFZ";
+        drawList.push({d: top[2]-1, fn: () => {
+          x.fillStyle = "#ff9090"; x.font = "bold 15px Consolas"; x.textAlign = "center";
+          x.fillText(name, top[0], top[1]-8);
+        }});
+      }
+    }
+
+    // waypoint pillars
+    (wps || []).forEach((w, i) => {
+      const zb = terrAlt(w.n_m, w.e_m), zt = Math.max(w.alt_msl_m - BASE, zb + 20);
+      const pb = projPoint([w.e_m, zb, w.n_m]), pt = projPoint([w.e_m, zt, w.n_m]);
+      if(!pb || !pt) return;
+      const cur = i === wpsCur, done = wpsCap && wpsCap[i];
+      const col = done ? "#3ecf6f" : cur ? "#ffd24a" : "#5b8cff";
+      drawList.push({d: (pb[2]+pt[2])/2 - 2, fn: () => {
+        x.strokeStyle = col; x.lineWidth = cur ? 3 : 1.6; x.setLineDash(cur ? [] : [6,5]);
+        x.beginPath(); x.moveTo(pb[0], pb[1]); x.lineTo(pt[0], pt[1]); x.stroke(); x.setLineDash([]);
+        x.fillStyle = col;
+        x.beginPath();
+        x.moveTo(pt[0], pt[1]-11); x.lineTo(pt[0]+8, pt[1]); x.lineTo(pt[0], pt[1]+11); x.lineTo(pt[0]-8, pt[1]);
+        x.closePath(); x.fill();
+        if(cur){ x.strokeStyle = "rgba(255,210,74,.7)"; x.lineWidth = 2;
+          x.beginPath(); x.arc(pt[0], pt[1], 18, 0, 7); x.stroke(); }
+        x.fillStyle = "#cfe3ff"; x.font = "bold 14px Consolas"; x.textAlign = "left";
+        x.fillText(String(i+1), pt[0]+14, pt[1]-10);
+        x.fillStyle = "#6f86ab"; x.font = "11px Consolas";
+        x.fillText((w.alt_msl_m*3.28084).toFixed(0) + " ft", pt[0]+14, pt[1]+5);
+      }});
+    });
+
+    // home marker
+    {
+      const hb = terrAlt(0, 0), ph = projPoint([0, hb + 6, 0]);
+      if(ph) drawList.push({d: ph[2]-3, fn: () => {
+        x.fillStyle = "#ff7b7b"; x.beginPath();
+        x.moveTo(ph[0], ph[1]-13); x.lineTo(ph[0]-10, ph[1]+9); x.lineTo(ph[0]+10, ph[1]+9);
+        x.closePath(); x.fill();
+        x.fillStyle = "#fff"; x.font = "bold 12px Consolas"; x.textAlign = "center"; x.fillText("H", ph[0], ph[1]+6);
+      }});
+    }
+
+    // flight track
+    if(track.length > 1){
+      for(let i = 1; i < track.length; i++){
+        const a = track[i-1], b = track[i];
+        const pa = projPoint([a[1], a[2], a[0]]), pb2 = projPoint([b[1], b[2], b[0]]);
+        if(!pa || !pb2) continue;
+        const age = (track.length - i)/track.length;
+        drawList.push({d: (pa[2]+pb2[2])/2 + 0.5, fn: (ia => () => {
+          x.strokeStyle = `rgba(57,194,255,${0.25 + 0.55*ia})`; x.lineWidth = 2.2;
+          x.beginPath(); x.moveTo(pa[0], pa[1]); x.lineTo(pb2[0], pb2[1]); x.stroke();
+        })(age)});
+      }
+    }
+
+    // UAV model
+    if(acPos && acEul){
+      const toW = rotBodyToWorld(acEul);
+      const faces = [];
+      for(const face of MODEL){
+        const wpts3 = face.v.map(toW);
+        const pp = wpts3.map(v => projPoint([acPos[0]+v[0], acPos[1]+v[1], acPos[2]+v[2]]));
+        if(pp.some(p => !p)) continue;
+        const d = pp.reduce((s, p) => s+p[2], 0)/pp.length;
+        // face shading by normal
+        const u = [wpts3[1][0]-wpts3[0][0], wpts3[1][1]-wpts3[0][1], wpts3[1][2]-wpts3[0][2]];
+        const v2 = [wpts3[3][0]-wpts3[0][0], wpts3[3][1]-wpts3[0][1], wpts3[3][2]-wpts3[0][2]];
+        let nx = u[1]*v2[2]-u[2]*v2[1], ny = u[2]*v2[0]-u[0]*v2[2], nz = u[0]*v2[1]-u[1]*v2[0];
+        const nl = Math.hypot(nx, ny, nz) || 1;
+        const lam = 0.62 + 0.38*Math.max(0, (nx*(-0.45)+ny*0.82+nz*0.36)/nl);
+        const base = face.col;
+        const m = base.match(/\w\w/g).map(h2 => Math.round(parseInt(h2, 16)*lam));
+        const col = `rgb(${m[0]},${m[1]},${m[2]})`;
+        faces.push({d, pts: pp.map(p => [p[0], p[1]]), col});
+      }
+      for(const fc of faces)
+        drawList.push({d: fc.d - 4, fn: () => poly(x, fc.pts, fc.col, "rgba(0,0,0,.25)")});
+      // locator ring so the UAV is always findable
+      const pring = projPoint([acPos[0], acPos[1], acPos[2]]);
+      if(pring) drawList.push({d: pring[2] - 5, fn: () => {
+        x.strokeStyle = "#ffd24a"; x.lineWidth = 2;
+        x.beginPath(); x.ellipse(pring[0], pring[1], 26, 9, 0, 0, 7); x.stroke();
+        x.fillStyle = "rgba(255,210,74,.9)";
+        x.beginPath(); x.arc(pring[0], pring[1], 3, 0, 7); x.fill();
+      }});
+      // callout
+      const pu = projPoint([acPos[0], acPos[1]+4, acPos[2]]);
+      if(pu) drawList.push({d: pu[2]-6, fn: () => {
+        x.strokeStyle = "rgba(255,210,74,.8)"; x.lineWidth = 1.4;
+        x.beginPath(); x.moveTo(pu[0], pu[1]); x.lineTo(pu[0]+26, pu[1]-30); x.lineTo(pu[0]+120, pu[1]-30); x.stroke();
+        x.fillStyle = "rgba(13,21,36,.85)"; x.fillRect(pu[0]+120, pu[1]-46, 190, 34);
+        x.strokeStyle = "rgba(255,210,74,.5)"; x.strokeRect(pu[0]+120, pu[1]-46, 190, 34);
+        x.fillStyle = "#ffd24a"; x.font = "bold 13px Consolas"; x.textAlign = "left";
+        if(D){
+          x.fillText(`IAS ${(D.pitot.ias_mps*KT).toFixed(0)} kt  ALT ${(D.pitot.baro_alt_msl_m*FT).toFixed(0)} ft`, pu[0]+128, pu[1]-31);
+          x.fillStyle = "#6f86ab"; x.font = "11px Consolas";
+          x.fillText(`AGL ${D.agl_m.toFixed(0)} m  RPM ${D.engine_sensors.rpm.toFixed(0)}`, pu[0]+128, pu[1]-17);
+        }
+      }});
+    }
+
+    // ---- airport + scenery ----
+    if(hello && hello.world) buildScene();
+    if(runwayPoly){
+      const pp = runwayPoly.pts.map(p => projPoint(p));
+      if(pp.every(p => p))
+        drawList.push({d: pp.reduce((s,p)=>s+p[2],0)/4, fn: (() => {
+          x.beginPath(); x.moveTo(pp[0][0],pp[0][1]); for(let i=1;i<4;i++) x.lineTo(pp[i][0],pp[i][1]);
+          x.closePath(); x.fillStyle = runwayPoly.col; x.fill();
+        })});
+      for(const [a2, b2] of runwayDashes){
+        const pa = projPoint(a2), pb2 = projPoint(b2);
+        if(pa && pb2)
+          drawList.push({d: (pa[2]+pb2[2])/2 + 0.05, fn: ((A,B) => () => {
+            x.strokeStyle = "#e8e8e8"; x.lineWidth = 2;
+            x.beginPath(); x.moveTo(A[0],A[1]); x.lineTo(B[0],B[1]); x.stroke();
+          })([pa[0],pa[1]],[pb2[0],pb2[1]])});
+      }
+    }
+    for(const fc of sceneFaces){
+      const pp = fc.pts.map(p => projPoint(p));
+      if(pp.some(p => !p)) continue;
+      const d = pp.reduce((s,p)=>s+p[2],0)/pp.length;
+      drawList.push({d, fn: ((P,C) => () => {
+        x.beginPath(); x.moveTo(P[0][0],P[0][1]);
+        for(let i=1;i<P.length;i++) x.lineTo(P[i][0],P[i][1]);
+        x.closePath(); x.fillStyle = `rgb(${C[0]},${C[1]},${C[2]})`; x.fill();
+      })(pp.map(p=>[p[0],p[1]]), fc.col)});
+    }
+    if(lakePoly){
+      const pp = lakePoly.map(p => projPoint(p));
+      if(pp.every(p => p))
+        drawList.push({d: pp.reduce((s,p)=>s+p[2],0)/pp.length, fn: (() => {
+          x.beginPath(); x.moveTo(pp[0][0],pp[0][1]);
+          for(let i=1;i<pp.length;i++) x.lineTo(pp[i][0],pp[i][1]);
+          x.closePath(); x.fillStyle = "#2a6ea8"; x.fill();
+        })(pp.map(p=>[p[0],p[1]]))});
+    }
+    for(const q of roadQuads){
+      const pp = q.map(p => projPoint(p));
+      if(pp.some(p => !p)) continue;
+      const d = pp.reduce((s,p)=>s+p[2],0)/4;
+      drawList.push({d, fn: ((P) => () => {
+        x.beginPath(); x.moveTo(P[0][0],P[0][1]);
+        for(let i=1;i<P.length;i++) x.lineTo(P[i][0],P[i][1]);
+        x.closePath(); x.fillStyle = "rgb(66,66,72)"; x.fill();
+      })(pp.map(p=>[p[0],p[1]]))});
+    }
+    for(const q of towerQuads){
+      const pp = q.map(p => projPoint(p));
+      if(pp.some(p => !p)) continue;
+      drawList.push({d: pp.reduce((s,p)=>s+p[2],0)/4, fn: ((P) => () => {
+        x.beginPath(); x.moveTo(P[0][0],P[0][1]);
+        for(let i=1;i<P.length;i++) x.lineTo(P[i][0],P[i][1]);
+        x.closePath(); x.fillStyle = "rgb(150,160,175)"; x.fill();
+      })(pp.map(p=>[p[0],p[1]]))});
+    }
+    if(towerTop){
+      const tp = projPoint(towerTop);
+      if(tp) drawList.push({d: tp[2] - 1, fn: ((P) => () => {
+        x.fillStyle = "#8cbeff"; x.font = "bold 15px Consolas"; x.textAlign = "center";
+        x.fillText("ATC", P[0], P[1]);
+      })([tp[0], tp[1]])});
+    }
+
+    // painter's algorithm
+    drawList.sort((a, b) => b.d - a.d);
+    for(const it of drawList) it.fn();
+
+    // trees (depth-sorted billboards)
+    if(trees3.length){
+      const items = [];
+      for(const t of trees3){
+        const pb = projPoint([t.e, t.b, t.n]), pt = projPoint([t.e, t.tp, t.n]);
+        if(!pb || !pt || pb[2] > 3600) continue;
+        if((pb[0] < -40 && pt[0] < -40) || (pb[0] > W+40 && pt[0] > W+40)) continue;
+        if((pb[1] < -40 && pt[1] < -40) || (pb[1] > H+40 && pt[1] > H+40)) continue;
+        items.push({d: pb[2], pb, pt, r: t.r});
+      }
+      items.sort((a,b) => b.d - a.d);
+      for(const it of items){
+        const wpx = Math.max(1.5, it.r * f / it.d);
+        const tx = it.pb[0] + (it.pt[0]-it.pb[0])*0.3, ty = it.pb[1] + (it.pt[1]-it.pb[1])*0.3;
+        x.strokeStyle = "#4a341e"; x.lineWidth = 1.5;
+        x.beginPath(); x.moveTo(it.pb[0], it.pb[1]); x.lineTo(tx, ty); x.stroke();
+        x.fillStyle = "#225428";
+        x.beginPath(); x.moveTo(it.pt[0], it.pt[1]);
+        x.lineTo(it.pb[0]-wpx, it.pb[1]); x.lineTo(it.pb[0]+wpx, it.pb[1]);
+        x.closePath(); x.fill();
+      }
+    }
+
+    // wreck: smoke column + flame + CRASH SITE label
+    if(D.crash && D.crash.crashed && acPos){
+      const tnow = performance.now()/1000;
+      for(let i=0;i<6;i++){
+        const ph = (tnow*0.45 + i/6)%1;
+        const up = acPos[1] + 2 + ph*55, drift = Math.sin(tnow*0.7+i)*ph*12;
+        const p = projPoint([acPos[0]+drift, up, acPos[2]+drift*0.6]);
+        if(!p) continue;
+        const r = Math.max(2, f*(2+ph*9)/p[2]);
+        const g = Math.round(70+90*ph);
+        x.fillStyle = `rgba(${g},${g},${g},0.75)`;
+        x.beginPath(); x.arc(p[0],p[1],r,0,7); x.fill();
+      }
+      const pf = projPoint([acPos[0], acPos[1]+1.5, acPos[2]]);
+      if(pf){
+        const fl = Math.max(2, f*(1.2+0.5*Math.sin(tnow*23))/pf[2]);
+        x.fillStyle = "rgba(255,120,30,0.85)";
+        x.beginPath(); x.arc(pf[0],pf[1],fl,0,7); x.fill();
+      }
+      const pl = projPoint([acPos[0], acPos[1]+70, acPos[2]]);
+      if(pl){
+        x.fillStyle = "#ff9a9a"; x.font = "bold 14px Consolas"; x.textAlign = "center";
+        x.fillText("CRASH SITE", pl[0], pl[1]);
+      }
+    }
+
+    // compass + scale
+    x.save(); x.translate(W-52, 52);
+    x.rotate(-cam.yaw);
+    x.fillStyle = "#ff9090"; x.beginPath();
+    x.moveTo(0,-20); x.lineTo(-7,4); x.lineTo(0,-2); x.lineTo(7,4); x.closePath(); x.fill();
+    x.restore();
+    x.fillStyle = "#cfe3ff"; x.font = "bold 13px Consolas"; x.textAlign = "center";
+    x.fillText("N", W-52, 80);
+    const barM = cam.dist > 4000 ? 2000 : cam.dist > 1800 ? 1000 : 500;
+    const barPx = barM * f / cam.dist;
+    x.strokeStyle = "#cfe3ff"; x.lineWidth = 3; x.beginPath();
+    x.moveTo(20, H-24); x.lineTo(20+barPx, H-24); x.stroke();
+    x.fillStyle = "#cfe3ff"; x.font = "12px Consolas"; x.textAlign = "left";
+    x.fillText(barM + " m", 22, H-32);
+  }
+
+  // input: orbit / zoom / pan
+  function attach(canvas){
+    let drag = null;
+    canvas.addEventListener("mousedown", e => {
+      drag = {x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey};
+      e.preventDefault();
+    });
+    window.addEventListener("mouseup", () => drag = null);
+    window.addEventListener("mousemove", e => {
+      if(!drag) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      drag.x = e.clientX; drag.y = e.clientY;
+      if(drag.pan){
+        // camera right in world (E,Up,N) = up × forward = (cos yaw, 0, -sin yaw)
+        const k = cam.dist*0.0012;
+        const cy2 = Math.cos(cam.yaw), sy2 = Math.sin(cam.yaw);
+        cam.tx -= cy2*dx*k;
+        cam.tz += sy2*dx*k;
+        cam.ty += dy*k;
+        if(follow){ follow = false; syncFollowBtn(); }
+        userTakesCam();
+      } else {
+        cam.yaw += dx*0.005;
+        cam.pit = Math.max(-0.05, Math.min(1.45, cam.pit + dy*0.005));
+        userTakesCam();
+      }
+    });
+    canvas.addEventListener("contextmenu", e => e.preventDefault());
+    canvas.addEventListener("wheel", e => {
+      e.preventDefault();
+      userTakesCam();
+      cam.dist = Math.max(140, Math.min(9000, cam.dist*Math.exp(e.deltaY*0.0011)));
+    }, {passive: false});
+    // touch: 1 finger orbit, 2 finger pinch
+    let tprev = null;
+    canvas.addEventListener("touchstart", e => {
+      if(e.touches.length === 1) tprev = {x: e.touches[0].clientX, y: e.touches[0].clientY, d: null};
+      else if(e.touches.length === 2){
+        const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+        tprev = {x: null, y: null, d};
+      }
+      e.preventDefault();
+    }, {passive: false});
+    canvas.addEventListener("touchmove", e => {
+      if(!tprev) return;
+      if(e.touches.length === 1 && tprev.d === null){
+        cam.yaw += (e.touches[0].clientX - tprev.x)*0.006;
+        cam.pit = Math.max(-0.05, Math.min(1.45, cam.pit + (e.touches[0].clientY - tprev.y)*0.006));
+        tprev.x = e.touches[0].clientX; tprev.y = e.touches[0].clientY;
+      } else if(e.touches.length === 2){
+        const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+        if(tprev.d) cam.dist = Math.max(140, Math.min(9000, cam.dist*tprev.d/d));
+        tprev.d = d;
+      }
+      e.preventDefault();
+    }, {passive: false});
+    canvas.addEventListener("touchend", () => tprev = null);
+  }
+
+  return {draw, attach, resetView, terrAlt,
+          get follow(){ return follow; },
+          set follow(v){ follow = v; syncFollowBtn(); }, cam,
+          get chase(){ return _chase; },
+          set chase(v){ _chase = v; syncChaseBtn(); }};
+})();
+
+/* tab buttons + view buttons */
+$("tab3d").onclick = () => { $("tab3d").classList.add("active"); $("tab2d").classList.remove("active");
+  $("wrap3d").style.display = ""; $("wrap2d").style.display = "none"; };
+$("tab2d").onclick = () => { $("tab2d").classList.add("active"); $("tab3d").classList.remove("active");
+  $("wrap2d").style.display = ""; $("wrap3d").style.display = "none"; if(D) drawMap(((D.state.euler[2]*57.2958)%360+360)%360); };
+$("btnFollow").onclick = () => { T3.follow = !T3.follow; };
+$("btnChase").onclick = () => {
+  T3.chase = !T3.chase;
+  if(T3.chase){ T3.follow = true; }
+};
+$("btnReset").onclick = () => T3.resetView();
+$("btnResetSim").onclick = () => {
+  if(ws && ws.readyState === 1) ws.send(JSON.stringify({type:"sim_reset"}));
+  else addMsg("sys", "Not connected — start the simulator first.");
+};
+T3.attach($("view3d"));
+
+/* animation loop: smooth telemetry between 10 Hz packets, render 3D at rAF */
+const sm = {pos: null, eul: null};
+function lerpAng(a, b, k){
+  let d = (b - a) % (2*Math.PI);
+  if(d > Math.PI) d -= 2*Math.PI; if(d < -Math.PI) d += 2*Math.PI;
+  return a + d*k;
+}
+let lastT = performance.now();
+function loop(now){
+  const dt = Math.min((now - lastT)/1000, 0.1); lastT = now;
+  if(D){
+    const p = D.state.pos_ned, e = D.state.euler;
+    const home = hello ? hello.home.alt_msl_m : 225;
+    const target = [p[1], home - p[2] - 225, p[0]];   // E, Up, N
+    if(!sm.pos){ sm.pos = target.slice(); sm.eul = e.slice(); }
+    const k = 1 - Math.exp(-dt*7);
+    for(let i = 0; i < 3; i++){
+      sm.pos[i] += (target[i] - sm.pos[i])*k;
+      sm.eul[i] = lerpAng(sm.eul[i], e[i], k);
+    }
+    if(T3.chase){
+      // camera locked behind & above the nose direction
+      const kc = 1 - Math.exp(-dt*3.2);
+      T3.cam.yaw = lerpAng(T3.cam.yaw, sm.eul[2], kc);
+      T3.cam.pit += (0.30 - T3.cam.pit)*kc;
+      T3.cam.dist += (120 - T3.cam.dist)*kc;
+    }
+    if($("wrap3d").style.display === ""){
+      T3.draw($("view3d"), sm.pos, sm.eul, D.mission_items, D.mission_captured,
+              D.mission_current_idx, hello ? hello.nfz_all : [], D.t_s);
+      const [roll, pitch] = drawADI.live;
+      drawADI(roll, pitch);
+    }
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ---------------- chat ---------------- */
+function addMsg(kind, text){
+  const m = document.createElement("div");
+  m.className = "msg " + kind; m.textContent = text;
+  $("msgs").appendChild(m); $("msgs").scrollTop = 1e9;
+}
+function ask(text){
+  if(!text.trim()) return;
+  if(!ws || ws.readyState !== 1){ addMsg("sys", "Not connected to the simulator."); return; }
+  addMsg("u", text);
+  ws.send(JSON.stringify({type:"ai_query", text}));
+}
+$("send").onclick = () => { ask($("q").value); $("q").value = ""; };
+$("q").addEventListener("keydown", e => { if(e.key === "Enter"){ ask($("q").value); $("q").value = ""; }});
+document.querySelectorAll(".chip2").forEach(ch => ch.onclick = () => ask(ch.dataset.q));
+
+connect();
+addMsg("sys", "Connecting to simulator — start the sim window if the dot stays red.");
+</script>
+</body>
+</html>

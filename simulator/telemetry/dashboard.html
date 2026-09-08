@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CyberSparks — UAV Telemetry &amp; AI Flight Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050505; --panel:#0d0d10; --panel2:#121014; --line:#2a1619;
+    --txt:#e8dcdc; --dim:#96858a; --accent:#ff2e3f; --green:#3ecf6f;
+    --amber:#ffb02e; --red:#ff4d4d; --violet:#9d7bff;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{background:var(--bg); color:var(--txt); font:500 13.5px/1.45 Rajdhani,"Segoe UI",system-ui,sans-serif;
+       padding:8px; height:100vh; display:flex; flex-direction:column; overflow:hidden;}
+  .mono{font-family:Consolas,"Cascadia Mono",monospace;}
+  header{display:flex; align-items:center; gap:14px; background:var(--panel); border:1px solid var(--line);
+         border-radius:10px; padding:8px 14px; margin-bottom:8px; flex:0 0 auto; flex-wrap:wrap;}
+  header h1{font-family:Orbitron,"Segoe UI",sans-serif; font-size:18px; font-weight:700; letter-spacing:2px; color:#fff; white-space:nowrap;}
+  header h1 .bolt{color:var(--accent);}
+  header h1 small{font-family:Rajdhani,"Segoe UI",sans-serif; font-size:11px; letter-spacing:1.6px; color:var(--dim); font-weight:600; margin-left:10px;}
+  .badge{font-size:10.5px; padding:3px 8px; border-radius:20px; border:1px solid var(--line); color:var(--dim); white-space:nowrap;}
+  .badge.ai{color:var(--violet); border-color:var(--violet); font-weight:600;}
+  #dot{width:10px; height:10px; border-radius:50%; background:var(--red); display:inline-block; margin-right:6px;}
+  #dot.on{background:var(--green); box-shadow:0 0 8px var(--green);}
+  .grow{flex:1;}
+  .chip{padding:4px 12px; border-radius:8px; font-weight:700; font-size:13px;}
+  .grid{flex:1; min-height:0; display:grid; grid-template-columns:280px minmax(0,1fr) 320px 300px; gap:8px;}
+  .col{display:flex; flex-direction:column; gap:8px; min-width:0; min-height:0; overflow-y:auto;}
+  .col.center{overflow:hidden;}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; flex:0 0 auto;}
+  .panel h2{font-family:Orbitron,"Segoe UI",sans-serif; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:1.6px; color:var(--accent); margin-bottom:8px;}
+  .panel.viewp{flex:1; min-height:0; display:flex; flex-direction:column;}
+  .panel.fill{flex:1; min-height:0; overflow-y:auto;}
+  .panel.sugp{flex:1; min-height:120px; display:flex; flex-direction:column;}
+  #wrap3d, #wrap2d{flex:1; min-height:0;}
+  #wrap3d canvas, #wrap2d canvas{width:100%; height:100%;}
+  canvas{display:block; width:100%; border-radius:8px; background:var(--panel2);}
+  .readouts{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px;}
+  .ro{background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:6px 9px;}
+  .ro .l{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.8px;}
+  .ro .v{font-size:19px; font-weight:700;}
+  .bar{height:7px; background:#17090b; border-radius:4px; overflow:hidden; margin-top:5px;}
+  .bar>i{display:block; height:100%; width:0%; border-radius:4px; background:var(--green); transition:width .12s;}
+  .eng-row{display:grid; grid-template-columns:64px 1fr 74px; gap:8px; align-items:center; margin:7px 0;}
+  .eng-row .l{font-size:11px; color:var(--dim);}
+  .eng-row .v{text-align:right; font-weight:700;}
+  .sub-row{margin:8px 0;}
+  .sub-row .top{display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:3px;}
+  .ins-grid{display:grid; grid-template-columns:1fr 1fr; gap:6px;}
+  .sug{background:var(--panel2); border:1px solid var(--line); border-left:3px solid var(--accent);
+       border-radius:8px; padding:8px 10px; margin-top:7px;}
+  .sug b{color:var(--accent);}
+  .sug .d{color:var(--dim); font-size:12px; margin-top:2px;}
+  #sugs{flex:1; min-height:0; overflow-y:auto;}
+  .al{padding:5px 9px; margin:4px 0; border-radius:6px; background:var(--panel2); font-size:12.5px;}
+  .al.INFO{border-left:3px solid var(--accent);} .al.WARN{border-left:3px solid var(--amber);}
+  .al.CRIT{border-left:3px solid var(--red); background:#2a0d10;}
+  .al.RESOLVED{border-left:3px solid var(--green); background:#0f2c1a; color:#b8f0c9;}
+  .al .t{color:var(--dim); font-size:10.5px; margin-right:6px;}
+  #chat{display:flex; flex-direction:column; flex:0 0 300px; min-height:0;}
+  #msgs{flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:4px 2px; min-height:0;}
+  .msg{max-width:88%; padding:7px 11px; border-radius:10px; font-size:12.5px; white-space:pre-wrap;}
+  .msg.u{align-self:flex-end; background:#431317;}
+  .msg.a{align-self:flex-start; background:var(--panel2); border:1px solid var(--line);}
+  .msg.sys{align-self:center; color:var(--dim); font-size:11px;}
+  .chips{display:flex; gap:6px; flex-wrap:wrap; margin:7px 0;}
+  .chip2{font-size:11px; padding:3px 9px; border-radius:14px; border:1px solid var(--line);
+         color:var(--accent); cursor:pointer; background:var(--panel2);}
+  .chip2:hover{border-color:var(--accent);}
+  #inrow{display:flex; gap:7px;}
+  #q{flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--txt);
+     border-radius:8px; padding:8px 10px; outline:none;}
+  #send{background:#8a1620; color:#fff; border:none; border-radius:8px; padding:8px 14px; cursor:pointer; font-weight:600;}
+  footer{color:var(--dim); font-size:10.5px; text-align:center; margin-top:8px; flex:0 0 auto;}
+  /* narrower windows: tighter columns, then the AI column moves under the grid,
+     then a full stack (classic scrolling page) so the view always stays usable */
+  @media (max-width:1360px){
+    .grid{grid-template-columns:240px minmax(0,1fr) 300px 280px;}
+  }
+  @media (max-width:1140px){
+    .grid{grid-template-columns:240px minmax(0,1fr) 300px; grid-template-rows:minmax(0,1fr) auto;}
+    .col.ai{grid-column:1 / -1; grid-row:2; flex-direction:row; overflow-x:auto; overflow-y:hidden;}
+    .col.ai > .panel{flex:1 1 260px; min-width:240px;}
+  }
+  @media (max-width:820px){
+    body{height:auto; min-height:100vh; overflow:auto; display:block;}
+    .grid{display:flex; flex-direction:column;}
+    .col.ai{flex-direction:column; overflow:visible;}
+    .col.ai > .panel{min-width:0;}
+    #wrap3d, #wrap2d{height:62vh; flex:none;}
+    #chat{flex:0 0 auto; height:320px;}
+  }
+  .viewbar{display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap;}
+  .vbtn{font-size:11px; padding:4px 12px; border-radius:7px; border:1px solid var(--line);
+        background:var(--panel2); color:var(--txt); cursor:pointer;}
+  .vbtn.active{border-color:var(--accent); color:var(--accent);}
+  .hint{font-size:10.5px; color:var(--dim);}
+  .tw-head{font-size:11px; font-weight:700; letter-spacing:1px; margin-bottom:8px; color:var(--violet);}
+  .tw-note{font-size:10px; color:var(--dim); margin-top:6px;}
+  #alerts{max-height:120px; overflow-y:auto;}
+  #crashBanner{position:fixed; left:50%; top:36%; transform:translate(-50%,-50%); z-index:50;
+    background:rgba(130,10,10,.93); border:2px solid var(--red); border-radius:12px;
+    padding:18px 34px; text-align:center; display:none; box-shadow:0 0 60px rgba(255,40,40,.45);}
+  #crashBanner .big{font-family:Orbitron,sans-serif; font-size:26px; font-weight:800; letter-spacing:2px; color:#fff;}
+  #crashBanner .sub{color:#ffd6d6; margin-top:7px; font-size:14px;}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="bolt">&#9889;</span> CYBERSPARKS <small>UAV TELEMETRY &amp; AI FLIGHT ASSISTANT</small></h1>
+  <span><span id="dot"></span><span id="conn">CONNECTING…</span></span>
+  <span class="badge mono" id="clock">T+0s</span>
+  <span class="chip mono" id="mode" style="background:#3a2b10;color:var(--amber)">MANUAL</span>
+  <div class="grow"></div>
+  <span class="chip mono" id="ohs" style="background:#12320f;color:var(--green)">--</span>
+</header>
+
+<div class="grid">
+  <!-- LEFT: attitude + flight data -->
+  <div class="col">
+    <div class="panel">
+      <h2>Attitude</h2>
+      <canvas id="adi" width="560" height="560"></canvas>
+    </div>
+    <div class="panel fill">
+      <h2>Flight data</h2>
+      <div class="readouts">
+        <div class="ro"><div class="l">IAS</div><div class="v mono"><span id="ias">0</span> <small>kt</small></div></div>
+        <div class="ro"><div class="l">Alt MSL</div><div class="v mono"><span id="alt">0</span> <small>ft</small></div></div>
+        <div class="ro"><div class="l">V/S</div><div class="v mono"><span id="vs">0</span> <small>fpm</small></div></div>
+        <div class="ro"><div class="l">HDG</div><div class="v mono"><span id="hdg">000</span><small>°</small></div></div>
+        <div class="ro"><div class="l">AGL</div><div class="v mono"><span id="agl">0</span> <small>m</small></div></div>
+        <div class="ro"><div class="l">Gnd spd</div><div class="v mono"><span id="gs">0</span> <small>kt</small></div></div>
+      </div>
+      <div class="readouts">
+        <div class="ro"><div class="l">Throttle <span id="thr" class="mono">55%</span></div>
+          <div class="bar"><i id="thrbar"></i></div></div>
+        <div class="ro"><div class="l">AoA <span id="aoa" class="mono">0°</span></div>
+          <div class="bar"><i id="aoabar"></i></div></div>
+      </div>
+      <div class="mono" style="margin-top:8px;font-size:11.5px;color:var(--dim)">
+        Flaps <span id="flap">0°</span> · Gear <span id="gear">DOWN</span> ·
+        Carb ht <span id="carb">OFF</span> · Trim <span id="trim">-2.5°</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: 3D scene / 2D map, alerts below -->
+  <div class="col center">
+    <div class="panel viewp">
+      <div class="viewbar">
+        <button class="vbtn active" id="tab3d">3D SCENE</button>
+        <button class="vbtn" id="tab2d">2D MAP</button>
+        <button class="vbtn active" id="btnFollow">FOLLOW: ON</button>
+        <button class="vbtn" id="btnChase">CHASE CAM</button>
+        <button class="vbtn" id="btnReset">RESET VIEW</button>
+        <button class="vbtn" id="btnResetSim">RESET SIM</button>
+        <span class="hint">drag&nbsp;=&nbsp;orbit · wheel&nbsp;=&nbsp;zoom · right/shift-drag&nbsp;=&nbsp;pan</span>
+      </div>
+      <div id="wrap3d"><canvas id="view3d" width="1150" height="980"></canvas></div>
+      <div id="wrap2d" style="display:none">
+        <canvas id="map" width="1150" height="980"></canvas>
+      </div>
+      <div class="mono" id="mapinfo" style="margin-top:6px;font-size:11px;color:var(--dim)">
+        GPS -- · -- sats · HDOP --</div>
+    </div>
+    <div class="panel">
+      <h2>Alerts</h2>
+      <div id="alerts"><div class="al INFO"><span class="t mono">--</span>Waiting for telemetry…</div></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: engine, health, AI suggestions -->
+  <div class="col">
+    <div class="panel">
+      <h2>Engine (piston)</h2>
+      <div id="eng"></div>
+    </div>
+    <div class="panel">
+      <h2>Digital twin — engine estimator</h2>
+      <div id="twinpanel">
+        <div class="tw-head mono" id="twstatus">WAITING FOR TELEMETRY…</div>
+        <div class="mono" id="twmldx" style="font-size:10.5px;color:var(--accent);margin:-2px 0 8px">ML: waiting…</div>
+        <div class="eng-row"><span class="l">WEAR EST</span><div class="bar"><i id="twwear"></i></div><span class="v mono" id="twwearv">--</span></div>
+        <div class="eng-row"><span class="l">FOULING EST</span><div class="bar"><i id="twfoul"></i></div><span class="v mono" id="twfoulv">--</span></div>
+        <div class="eng-row"><span class="l">OIL HEALTH</span><div class="bar"><i id="twoil"></i></div><span class="v mono" id="twoilv">--</span></div>
+        <div class="eng-row"><span class="l">EFF. POWER</span><div class="bar"><i id="twpow"></i></div><span class="v mono" id="twpowv">--</span></div>
+        <div class="eng-row"><span class="l">PRED. FAILURE</span><div class="bar"><i id="twrulbar"></i></div><span class="v mono" id="twrul">--</span></div>
+        <div class="tw-note" id="twnote">ML estimates learned from simulator fault scenarios + online adaptation — from noisy sensors only, never ground truth</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAR RIGHT: AI copilot — health, insights, suggestions, chat -->
+  <div class="col ai">
+    <div class="panel">
+      <h2>AI health monitor — subsystems</h2>
+      <div id="subs"></div>
+    </div>
+    <div class="panel">
+      <h2>Insights</h2>
+      <div class="ins-grid" id="ins"></div>
+    </div>
+    <div class="panel sugp">
+      <h2>AI suggestions</h2>
+      <div id="sugs"><div class="sug" style="border-left-color:var(--dim)"><span class="d">No suggestions — all monitored parameters nominal.</span></div></div>
+    </div>
+    <div class="panel" id="chat">
+      <h2>AI flight assistant — chat</h2>
+      <div id="msgs">
+        <div class="msg a">AI assistant online. I watch your engine, fuel, flight envelope, navigation and
+sensors, and I answer with live data. Ask me anything — or tap a chip below.
+I only ever suggest: I have no link to the controls.</div>
+      </div>
+      <div class="chips">
+        <span class="chip2" data-q="status">status</span>
+        <span class="chip2" data-q="fuel and endurance">fuel / endurance</span>
+        <span class="chip2" data-q="engine">engine</span>
+        <span class="chip2" data-q="stall margin">stall margin</span>
+        <span class="chip2" data-q="wind">wind</span>
+        <span class="chip2" data-q="nfz">NFZ</span>
+        <span class="chip2" data-q="suggest">suggest</span>
+      </div>
+      <div id="inrow">
+        <input id="q" placeholder="Ask the assistant… (e.g. how much fuel to reach home?)">
+        <button id="send">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>Piston-engine UAV simulator · telemetry streamed at 10 Hz over WebSocket · interactive 3D scene (software-rendered, offline) · the AI reads telemetry and answers/suggests — it is architecturally unable to actuate the aircraft.</footer>
+
+<div id="crashBanner">
+  <div class="big">&#9992; CRASHED</div>
+  <div class="sub" id="crashReason"></div>
+  <div class="sub">Press R in the simulator window — or click RESET SIM — to fly again</div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const KT = 1.94384, FT = 3.28084, FPM = 196.85;
+let ws = null, hello = null, D = null;
+let lastRxMs = 0;                 // last packet arrival — feeds the watchdog
+const track = [];                 // [n,e,up] history (metres, up = MSL-225)
+const alertSeen = new Map();      // id -> t_s
+let lastTs = null;                // detects simulator reset (t_s jumps back)
+const wsUrl = new URLSearchParams(location.search).get("ws") ||
+              "ws://" + (location.hostname || "127.0.0.1") + ":8765";
+
+function connect(){
+  $("conn").textContent = "CONNECTING…"; $("dot").classList.remove("on");
+  try{ ws = new WebSocket(wsUrl); }catch(e){ setTimeout(connect, 2500); return; }
+  lastRxMs = Date.now();
+  ws.onopen = () => { $("conn").textContent = "LIVE"; $("dot").classList.add("on"); };
+  ws.onclose = () => { $("conn").textContent = "RECONNECTING…"; $("dot").classList.remove("on"); setTimeout(connect, 2000); };
+  ws.onerror = () => ws.close();
+  ws.onmessage = ev => {
+    lastRxMs = Date.now();
+    let m; try{ m = JSON.parse(ev.data); }catch(e){ return; }
+    if(m.type === "hello"){ hello = m; }
+    else if(m.type === "telemetry"){ D = m.d; ingest(D); }
+    else if(m.type === "ai_reply"){ addMsg("a", m.answer); }
+  };
+}
+
+function ingest(d){
+  if(lastTs !== null && d.t_s < lastTs - 2){
+    // simulator was reset: clear flight history
+    track.length = 0;
+    alertSeen.clear();
+    $("alerts").innerHTML = "<div class='al INFO'><span class='t mono'>--</span>Simulator reset — waiting for telemetry…</div>";
+    sm.pos = null; sm.eul = null;
+  }
+  lastTs = d.t_s;
+  const p = d.state.pos_ned;
+  const up = (hello ? hello.home.alt_msl_m : 225) - p[2] - 225;
+  const last = track[track.length-1];
+  if(!last || Math.hypot(p[0]-last[0], p[1]-last[1]) > 2) track.push([p[0], p[1], up]);
+  if(track.length > 2500) track.shift();
+  (d.ai && d.ai.alerts || []).forEach(a => {
+    if(alertSeen.get(a.id) !== a.t_s){ alertSeen.set(a.id, a.t_s); pushAlert(a); }
+  });
+  render2D();
+  if($("wrap2d").style.display !== "none" && D){
+    drawMap(((D.state.euler[2]*57.2958)%360+360)%360);
+  }
+}
+
+function pushAlert(a){
+  const box = $("alerts");
+  if(box.querySelector(".al.INFO")) box.innerHTML = "";
+  const el = document.createElement("div");
+  el.className = "al " + a.sev;
+  el.innerHTML = `<span class="t mono">T+${a.t_s.toFixed(0)}s [${a.sev}]</span>${a.msg}`;
+  box.prepend(el);
+  while(box.children.length > 40) box.lastChild.remove();
+}
+
+/* ================= shared 2D panel rendering ================= */
+const colByScore = s => s >= 80 ? "var(--green)" : s >= 60 ? "var(--accent)" : s >= 35 ? "var(--amber)" : "var(--red)";
+function barFrac(v, mn, mx){ return Math.max(0, Math.min(1, (v - mn) / (mx - mn))); }
+function engRow(label, val, frac, warnHigh, warnLow, unit){
+  let col = "var(--green)";
+  if(warnHigh && frac > 0.85) col = "var(--red)";
+  else if(warnLow && frac < 0.25) col = "var(--red)";
+  else if(frac > 0.72 || (warnLow && frac < 0.4)) col = "var(--amber)";
+  return `<div class="eng-row"><span class="l">${label}</span>
+    <div class="bar"><i style="width:${(frac*100).toFixed(1)}%;background:${col}"></i></div>
+    <span class="v mono">${val}${unit ? "<small> "+unit+"</small>" : ""}</span></div>`;
+}
+
+function render2D(){
+  if(!D) return;
+  const eu = D.state.euler;
+  const roll = eu[0]*57.2958, pitch = eu[1]*57.2958, hdg = ((eu[2]*57.2958)%360+360)%360;
+  const pit = D.pitot, gps = D.gps, eng = D.engine, es = D.engine_sensors, mc = D.manual_controls;
+  const ft = eng.faults || {};
+  const ec = (hello && hello.engine_cfg) ||
+             {fuel_full_L: 240, max_rpm: 5800, max_power_kw: 86, cht_max_c: 240, egt_max_c: 880};
+  const tw = D.twin || null;
+  if(tw){
+    const ml = tw.ml || null, mldx = $("twmldx");
+    if(mldx){
+      if(ml && ml.available){
+        mldx.textContent = "ML dx: " + ml.class + " " + Math.round((ml.conf||0)*100) + "%" +
+          " · fail risk " + Math.round((ml.fail_risk_60s||0)*100) + "%" +
+          " · adapted to " + (ml.learned_samples||0) + " live samples";
+        mldx.style.color = (ml.fail_risk_60s||0) > 0.35 || (ml.class && ml.class !== "healthy" && (ml.conf||0) > 0.55)
+          ? "var(--amber)" : "var(--accent)";
+      } else {
+        mldx.textContent = "ML: offline" + (ml && ml.reason ? " — " + ml.reason : "");
+        mldx.style.color = "var(--dim)";
+      }
+    }
+    const setb = (id, v, col) => { const el = $(id); if(el){ el.style.width = (v*100).toFixed(1)+"%"; el.style.background = col; }};
+    setb("twwear", (tw.wear_pct||0)/100, (tw.wear_pct||0) > 45 ? "var(--red)" : (tw.wear_pct||0) > 25 ? "var(--amber)" : "var(--green)");
+    setb("twfoul", (tw.fouling_pct||0)/100, (tw.fouling_pct||0) > 45 ? "var(--red)" : (tw.fouling_pct||0) > 25 ? "var(--amber)" : "var(--green)");
+    setb("twoil", (tw.oil_health_pct==null?100:tw.oil_health_pct)/100, (tw.oil_health_pct==null?100:tw.oil_health_pct) < 35 ? "var(--red)" : (tw.oil_health_pct||100) < 60 ? "var(--amber)" : "var(--green)");
+    setb("twpow", (tw.power_est_pct==null?100:tw.power_est_pct)/100, (tw.power_est_pct||100) < 70 ? "var(--amber)" : "var(--green)");
+    $("twwearv").textContent = (tw.wear_pct||0).toFixed(0)+"%";
+    $("twfoulv").textContent = (tw.fouling_pct||0).toFixed(0)+"%";
+    $("twoilv").textContent = (tw.oil_health_pct==null?100:tw.oil_health_pct).toFixed(0)+"%";
+    $("twpowv").textContent = (tw.power_est_pct==null?100:tw.power_est_pct).toFixed(0)+"%";
+    if(tw.rul_h != null){
+      $("twrul").textContent = tw.rul_h.toFixed(2)+" h ±"+Math.max(0,(tw.rul_hi||0)-tw.rul_h).toFixed(2);
+      $("twrulbar").style.width = Math.max(2, Math.min(100, tw.rul_h*80)).toFixed(0)+"%";
+      $("twrulbar").style.background = tw.rul_h < 0.5 ? "var(--red)" : tw.rul_h < 1.5 ? "var(--amber)" : "var(--green)";
+    } else {
+      $("twrul").textContent = "no active degradation";
+      $("twrulbar").style.width = "100%"; $("twrulbar").style.background = "var(--green)";
+    }
+    $("twstatus").textContent = tw.synced ? "TWIN SYNCED — confidence "+(tw.confidence*100).toFixed(0)+"%"
+                                          : "TWIN DIVERGENCE — sensor data suspect";
+    $("twstatus").style.color = tw.synced ? "var(--violet)" : "var(--red)";
+  }
+  const ai = D.ai || null;
+
+  $("clock").textContent = "T+" + D.t_s.toFixed(0) + "s";
+  const modeEl = $("mode");
+  modeEl.textContent = D.mode;
+  modeEl.style.background = D.mode === "MANUAL" ? "#3a2b10" : "#0f2c1a";
+  modeEl.style.color = D.mode === "MANUAL" ? "var(--amber)" : "var(--green)";
+
+  if(ai){
+    const ov = ai.overall, ohs = $("ohs");
+    ohs.textContent = ov.score.toFixed(0) + " " + ov.status;
+    ohs.style.color = colByScore(ov.score);
+    ohs.style.background = ov.score >= 60 ? "#0f2c1a" : ov.score >= 35 ? "#3a2b10" : "#2a1116";
+  }
+
+  $("ias").textContent = (pit.ias_mps*KT).toFixed(0);
+  $("alt").textContent = (pit.baro_alt_msl_m*FT).toFixed(0);
+  const vs = pit.vsi_mps*FPM;
+  $("vs").textContent = (vs>=0?"+":"") + vs.toFixed(0);
+  $("hdg").textContent = String(Math.round(hdg)).padStart(3,"0");
+  $("agl").textContent = D.agl_m.toFixed(0);
+  $("gs").textContent = (gps.groundspeed_mps*KT).toFixed(0);
+  $("thr").textContent = (mc.throttle*100).toFixed(0)+"%";
+  $("thrbar").style.width = (mc.throttle*100)+"%";
+  const aoa = (D.aero.alpha_rad||0)*57.2958;
+  $("aoa").textContent = aoa.toFixed(1)+"°";
+  $("aoabar").style.width = barFrac(Math.abs(aoa), 0, 15)*100+"%";
+  $("aoabar").style.background = Math.abs(aoa) > 12 ? "var(--red)" : Math.abs(aoa) > 9 ? "var(--amber)" : "var(--green)";
+  $("flap").textContent = mc.delta_flap_deg.toFixed(0)+"°";
+  $("gear").textContent = mc.gear_down ? "DOWN" : "UP";
+  $("carb").textContent = mc.carb_heat ? "ON" : "OFF";
+  $("trim").textContent = mc.delta_e_trim_deg.toFixed(1)+"°";
+
+  $("eng").innerHTML =
+    engRow("RPM",   es.rpm.toFixed(0),  barFrac(es.rpm, 0, ec.max_rpm), true, false) +
+    engRow("PWR",   eng.power_kw.toFixed(1), barFrac(eng.power_kw, 0, ec.max_power_kw), true, false, "kW") +
+    engRow("FUEL",  es.fuel_qty_L.toFixed(2), barFrac(es.fuel_qty_L, 0, ec.fuel_full_L), false, true, "L") +
+    engRow("FF",    es.fuel_flow_Lph.toFixed(2), barFrac(es.fuel_flow_Lph, 0, 12), true, false, "L/h") +
+    engRow("CHT",   es.cht_C.toFixed(0), barFrac(es.cht_C, 40, ec.cht_max_c), true, false, "°C") +
+    engRow("EGT",   es.egt_C.toFixed(0), barFrac(es.egt_C, 100, ec.egt_max_c), true, false, "°C") +
+    engRow("OIL",   es.oil_psi.toFixed(1), barFrac(es.oil_psi, 0, 90), false, true, "psi") +
+    engRow("STRESS", (ft.stress_pct||0).toFixed(0), barFrac(ft.stress_pct||0, 0, 100), true, false, "%") +
+    engRow("ICE",    (ft.ice_pct||0).toFixed(0),    barFrac(ft.ice_pct||0, 0, 100), true, false, "%") +
+    engRow("OIL QTY",(ft.oil_qty_pct==null?100:ft.oil_qty_pct).toFixed(0), barFrac(ft.oil_qty_pct==null?100:ft.oil_qty_pct, 0, 100), false, true, "%") +
+    (eng.health_flags.length ? `<div style="color:var(--red);font-size:11px;margin-top:4px">FLAGS: ${eng.health_flags.join(", ")}</div>` : "");
+
+  if(ai){
+    $("subs").innerHTML = Object.entries(ai.subsystems).map(([k, s]) => `
+      <div class="sub-row">
+        <div class="top"><span>${k.toUpperCase()}${s.notes.length ? " — <span style='color:var(--dim)'>"+s.notes.join(", ")+"</span>" : ""}</span>
+        <b style="color:${colByScore(s.score)}">${s.score.toFixed(0)} ${s.status}</b></div>
+        <div class="bar"><i style="width:${s.score}%;background:${colByScore(s.score)}"></i></div>
+      </div>`).join("");
+
+    const ins = ai.insights;
+    const fmt = (v, suf, dg=1) => v == null ? "--" : v.toFixed(dg)+suf;
+    $("ins").innerHTML = [
+      ["Endurance", ins.endurance_min == null ? "--" : fmt(ins.endurance_min, " min", 0)],
+      ["Range", ins.range_km == null ? "--" : fmt(ins.range_km, " km")],
+      ["Dist home", fmt(ins.dist_home_km, " km")],
+      ["Fuel → home", ins.fuel_home_L == null ? "--" :
+        fmt(ins.fuel_home_L, " L") + (ins.can_reach_home === false ? " ⚠" : "")],
+      ["Stall margin", fmt(ins.stall_margin_kt, " kt", 0)],
+      ["CHT trend", ins.cht_trend_c_per_min == null ? "--" :
+        (ins.cht_trend_c_per_min>=0?"+":"") + ins.cht_trend_c_per_min.toFixed(0) + " °C/min"],
+      ["Headwind", ins.headwind_mps == null ? "--" : fmt(Math.abs(ins.headwind_mps), " m/s") + (ins.headwind_mps > 0 ? " ▲" : " ▼")],
+      ["AGL", fmt(ins.agl_m, " m", 0)],
+    ].map(([l, v]) => `<div class="ro"><div class="l">${l}</div><div class="v mono" style="font-size:14px">${v}</div></div>`).join("");
+
+    if(ai.suggestions.length){
+      $("sugs").innerHTML = ai.suggestions.map(x =>
+        `<div class="sug"><b>${x.title}</b><div class="d">${x.detail}</div></div>`).join("");
+    } else {
+      $("sugs").innerHTML = `<div class="sug" style="border-left-color:var(--dim)"><span class="d">No suggestions — all monitored parameters nominal.</span></div>`;
+    }
+  }
+
+  const cr = D.crash;
+  $("crashBanner").style.display = (cr && cr.crashed) ? "block" : "none";
+  if(cr && cr.crashed) $("crashReason").textContent = cr.reason || "terrain impact";
+
+  $("mapinfo").textContent =
+    `GPS ${gps.health} · ${gps.satellites} sats · HDOP ${gps.hdop.toFixed(2)} · ` +
+    `lat ${gps.lat_deg.toFixed(5)} lon ${gps.lon_deg.toFixed(5)} · FPS ${D.fps.toFixed(0)}`;
+}
+
+/* ================= ADI ================= */
+function drawADI(roll, pitch){
+  const c = $("adi"), x = c.getContext("2d"), W = c.width, H = c.height;
+  const cx = W/2, cy = H/2, R = Math.min(W,H)/2 - 8;
+  x.clearRect(0,0,W,H);
+  x.save();
+  x.beginPath(); x.arc(cx, cy, R, 0, 7); x.clip();
+  const rp = pitch * 4.2;
+  x.translate(cx, cy); x.rotate(-roll*0.01745); x.translate(0, rp);
+  x.fillStyle = "#101318"; x.fillRect(-2*R, -2.5*R, 4*R, 2.5*R);
+  x.fillStyle = "#261416"; x.fillRect(-2*R, 0, 4*R, 2.5*R);
+  x.strokeStyle = "#fff"; x.lineWidth = 3;
+  x.beginPath(); x.moveTo(-2*R, 0); x.lineTo(2*R, 0); x.stroke();
+  x.lineWidth = 1.4; x.fillStyle = "#fff"; x.font = "16px Rajdhani,Consolas"; x.textAlign = "center";
+  for(let pd = -40; pd <= 40; pd += 10){
+    if(pd === 0) continue;
+    const y = -pd*4.2, w = pd%20 === 0 ? 70 : 36;
+    x.beginPath(); x.moveTo(-w, y); x.lineTo(w, y); x.stroke();
+    if(pd%20 === 0) x.fillText(pd, w+22, y+6);
+  }
+  x.restore();
+  x.strokeStyle = "#3a2226"; x.lineWidth = 4;
+  x.beginPath(); x.arc(cx, cy, R, 0, 7); x.stroke();
+  x.strokeStyle = "#e8dcdc";
+  for(let a = -60; a <= 60; a += 10){
+    const rad = (a-90)*0.01745, r1 = R-4, r2 = R - (a%30===0?18:11);
+    x.lineWidth = a%30===0 ? 2.5 : 1.2;
+    x.beginPath();
+    x.moveTo(cx + r1*Math.cos(rad), cy + r1*Math.sin(rad));
+    x.lineTo(cx + r2*Math.cos(rad), cy + r2*Math.sin(rad));
+    x.stroke();
+  }
+  x.save(); x.translate(cx, cy); x.rotate(-roll*0.01745);
+  x.fillStyle = "#ffb02e";
+  x.beginPath(); x.moveTo(0, -R+8); x.lineTo(-8, -R+24); x.lineTo(8, -R+24); x.closePath(); x.fill();
+  x.restore();
+  x.strokeStyle = "#ffd24a"; x.lineWidth = 5; x.lineCap = "round";
+  x.beginPath(); x.moveTo(cx-62, cy); x.lineTo(cx-18, cy); x.lineTo(cx-10, cy+8); x.stroke();
+  x.beginPath(); x.moveTo(cx+62, cy); x.lineTo(cx+18, cy); x.lineTo(cx+10, cy+8); x.stroke();
+  x.fillStyle = "#ffd24a"; x.fillRect(cx-4, cy-3, 8, 6);
+  x.fillStyle = "#e8dcdc"; x.font = "15px Rajdhani,Consolas"; x.textAlign = "left";
+  x.fillText(`φ ${roll.toFixed(0)}°  θ ${pitch.toFixed(0)}°`, 10, 20);
+  drawADI.live = [roll, pitch];
+}
+drawADI.live = [0, 0];
+
+/* ================= 2D MAP (tab) ================= */
+let terrainImg = null;
+const TERR_N = 150, TERR_HALF = 14000;
+function buildTerrainImage(){
+  if(terrainImg || !hello || !hello.world) return;
+  const c = document.createElement("canvas");
+  c.width = TERR_N; c.height = TERR_N;
+  const g = c.getContext("2d");
+  const img = g.createImageData(TERR_N, TERR_N);
+  const step = 2*TERR_HALF/(TERR_N-1);
+  for(let i = 0; i < TERR_N; i++){          // row 0 = north edge
+    const n = TERR_HALF - i*step;
+    for(let j = 0; j < TERR_N; j++){
+      const e = -TERR_HALF + j*step;
+      const h = T3.terrAlt(n, e);           // height above base (m)
+      let r, g2, b;
+      if(h < 8)       { r=52;  g2=94;  b=48; }
+      else if(h < 60) { const t=(h-8)/52;  r=52+t*58;  g2=94+t*16; b=48+t*12; }
+      else if(h < 160){ const t=(h-60)/100; r=110+t*20; g2=110-t*12; b=60+t*28; }
+      else if(h < 300){ const t=(h-160)/140; r=130+t*45; g2=98+t*34; b=88+t*38; }
+      else            { const t=Math.min(1,(h-300)/130); r=205+t*40; g2=205+t*45; b=210+t*45; }
+      const k = (i*TERR_N + j)*4;
+      img.data[k] = r; img.data[k+1] = g2; img.data[k+2] = b; img.data[k+3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  terrainImg = c;
+}
+function drawMap(hdg){
+  const c = $("map"), x = c.getContext("2d"), W = c.width, H = c.height;
+  x.clearRect(0,0,W,H);
+  x.fillStyle = "#0a0708"; x.fillRect(0,0,W,H);
+  const pts = [[0,0], ...track];
+  (hello ? hello.nfz_all : []).forEach(z => pts.push([z.center_ned[0], z.center_ned[1]]));
+  (hello && hello.world ? hello.world.mountains : []).forEach(m => pts.push([m.n, m.e]));
+  (D.mission_items||[]).forEach(w => pts.push([w.n_m, w.e_m]));
+  let n0=1e9, n1=-1e9, e0=1e9, e1=-1e9;
+  pts.forEach(([n,e]) => { n0=Math.min(n0,n); n1=Math.max(n1,n); e0=Math.min(e0,e); e1=Math.max(e1,e); });
+  const pad = 90;
+  const sc = Math.max(0.012, Math.min(0.2, Math.min((W-2*pad)/Math.max(e1-e0,300), (H-2*pad)/Math.max(n1-n0,300))));
+  const cn = (n0+n1)/2, ce = (e0+e1)/2, cx = W/2, cy = H/2;
+  const px = (n,e) => [cx + (e-ce)*sc, cy - (n-cn)*sc];
+
+  x.strokeStyle = "#1f1214"; x.setLineDash([5,6]); x.lineWidth = 1;
+  [500, 1000, 2000].forEach(r => {
+    x.beginPath(); x.arc(cx, cy, r*sc, 0, 7); x.stroke();
+    x.fillStyle = "#5c4348"; x.font = "12px Rajdhani,Consolas"; x.textAlign = "center";
+    x.fillText(r/1000 + " km", cx, cy - r*sc - 4);
+  });
+  x.setLineDash([]);
+
+  // terrain heightmap
+  if(!terrainImg && hello && hello.world) buildTerrainImage();
+  if(terrainImg){
+    const dx = cx + (-TERR_HALF - ce)*sc, dy = cy - (TERR_HALF - cn)*sc;
+    x.imageSmoothingEnabled = true;
+    x.drawImage(terrainImg, dx, dy, 2*TERR_HALF*sc, 2*TERR_HALF*sc);
+  }
+
+  // lake
+  const lk = hello && hello.world && hello.world.lake;
+  if(lk){
+    const [lx, ly] = px(lk.n, lk.e);
+    x.fillStyle = "#2a6ea8"; x.beginPath(); x.arc(lx, ly, lk.radius_m*sc, 0, 7); x.fill();
+  }
+  // roads
+  x.strokeStyle = "#565a62"; x.lineWidth = Math.max(1.2, 7*sc);
+  for(const road of (hello && hello.world ? hello.world.roads : [])){
+    x.beginPath();
+    road.forEach(([rn, re], i) => { const [sx, sy] = px(rn, re); i ? x.lineTo(sx, sy) : x.moveTo(sx, sy); });
+    x.stroke();
+  }
+
+  // mountain summits
+  (hello && hello.world ? hello.world.mountains : []).forEach(m => {
+    const [sx, sy] = px(m.n, m.e);
+    x.fillStyle = "#e8dcc0";
+    x.beginPath(); x.moveTo(sx, sy-7); x.lineTo(sx-6, sy+4); x.lineTo(sx+6, sy+4);
+    x.closePath(); x.fill();
+    x.font = "12px Rajdhani,Consolas"; x.textAlign = "center";
+    x.fillText(`▲ ${m.h_m.toFixed(0)} m`, sx, sy + 18);
+  });
+
+  (hello ? hello.nfz_all : []).forEach(z => {
+    const [sx, sy] = px(z.center_ned[0], z.center_ned[1]);
+    const r = z.radius_m * sc;
+    x.fillStyle = "rgba(220,60,60,.13)"; x.beginPath(); x.arc(sx, sy, r, 0, 7); x.fill();
+    x.strokeStyle = "rgba(255,80,80,.8)"; x.lineWidth = 2; x.stroke();
+    x.fillStyle = "#ff9090"; x.font = "13px Rajdhani,Consolas"; x.textAlign = "center";
+    x.fillText(z.name, sx, sy - r - 6);
+  });
+
+  if(track.length > 1){
+    x.strokeStyle = "#ff4040"; x.lineWidth = 2.2; x.beginPath();
+    track.forEach(([n,e], i) => { const [sx,sy] = px(n,e); i ? x.lineTo(sx,sy) : x.moveTo(sx,sy); });
+    x.stroke();
+  }
+
+  const wps = D.mission_items || [];
+  if(wps.length > 1){
+    x.strokeStyle = "#4a3036"; x.setLineDash([7,6]); x.lineWidth = 1.6; x.beginPath();
+    wps.forEach((w,i) => { const [sx,sy] = px(w.n_m,w.e_m); i ? x.lineTo(sx,sy) : x.moveTo(sx,sy); });
+    x.stroke(); x.setLineDash([]);
+  }
+  wps.forEach((w, i) => {
+    const [sx, sy] = px(w.n_m, w.e_m);
+    const cur = i === D.mission_current_idx, done = D.mission_captured && D.mission_captured[i];
+    x.fillStyle = done ? "#3ecf6f" : "#ff5d6e";
+    x.fillRect(sx-5, sy-5, 10, 10);
+    if(cur){ x.strokeStyle = "#ffd24a"; x.lineWidth = 2.5; x.beginPath(); x.arc(sx, sy, 12, 0, 7); x.stroke(); }
+    x.fillStyle = "#e8dcdc"; x.font = "13px Rajdhani,Consolas"; x.textAlign = "left";
+    x.fillText(String(i+1), sx+9, sy-8);
+  });
+
+  const [hx, hy] = px(0, 0);
+  x.fillStyle = "#ff7b7b"; x.beginPath();
+  x.moveTo(hx, hy-11); x.lineTo(hx-9, hy+8); x.lineTo(hx+9, hy+8); x.closePath(); x.fill();
+  x.fillStyle = "#fff"; x.font = "bold 11px Rajdhani,Consolas"; x.textAlign = "center"; x.fillText("H", hx, hy+6);
+
+  const [ax, ay] = px(D.state.pos_ned[0], D.state.pos_ned[1]);
+  x.save(); x.translate(ax, ay); x.rotate(hdg*0.01745);
+  x.fillStyle = "#ffd24a"; x.beginPath();
+  x.moveTo(0,-15); x.lineTo(-9,12); x.lineTo(0,6); x.lineTo(9,12); x.closePath(); x.fill();
+  x.restore();
+  x.strokeStyle = "rgba(255,210,74,.5)"; x.setLineDash([3,5]);
+  x.beginPath(); x.moveTo(ax, ay); x.lineTo(ax + 70*Math.sin(hdg*0.01745), ay - 70*Math.cos(hdg*0.01745)); x.stroke();
+  x.setLineDash([]);
+
+  const barM = sc > 0.08 ? 500 : 2000, barPx = barM*sc;
+  x.strokeStyle = "#e8dcdc"; x.lineWidth = 3; x.beginPath();
+  x.moveTo(20, H-24); x.lineTo(20+barPx, H-24); x.stroke();
+  x.fillStyle = "#e8dcdc"; x.font = "12px Rajdhani,Consolas"; x.textAlign = "left";
+  x.fillText(barM + " m", 22, H-32);
+  x.fillStyle = "#ff9090"; x.font = "bold 15px Rajdhani,Consolas"; x.fillText("N ↑", 20, 26);
+}
+
+/* =================================================================
+   3D SCENE — software renderer on 2D canvas (no dependencies)
+   World frame: x = East, y = Up, z = North.  Altitudes relative to 225 m.
+   ================================================================= */
+const T3 = (() => {
+  const BASE = 225, BUMPS = 35, RAD = 6000;
+  function terrAlt(n, e){
+    const r = Math.hypot(n, e) / RAD;
+    const bowl = BUMPS*0.6*Math.pow(Math.max(r-0.4, 0), 2);
+    const h1 = BUMPS*0.55*Math.sin(n*0.0012+0.4)*Math.cos(e*0.0015-0.1);
+    const h2 = BUMPS*0.35*Math.sin(n*0.004+1.8)*Math.cos(e*0.003+0.7);
+    const h3 = BUMPS*0.22*Math.sin((n+e)*0.0028+2.3);
+    return BASE + bowl + h1 + h2 + h3 - BASE;
+  }
+
+  // ---- terrain mesh (flight area ±9 km) — built lazily once hello arrives ----
+  const HALF = 9000, NG = 181;          // 181×181 grid → 100 m cells
+  const STEP = 2*HALF/(NG-1);
+  const verts = [];           // [x(E), y(Up), z(N)]
+  const vidx = (i, j) => i*NG + j;
+  let terrainBuilt = false;
+  let vFlat = null;              // flattened verts — fast per-frame projection
+  let P = new Float64Array(0);   // projection buffer, sized with the mesh
+  // per-quad data in typed arrays: corner indices, fog-quantised colour
+  // strings, per-frame depth + depth-sorted index list (no per-frame objects)
+  let qIds = null, qCols = null, tDepth = null, tOrder = null, tFog = null, nQ = 0;
+
+  // distance fog: quads dissolve into the horizon haze colour instead of being
+  // drawn out to the mesh edge.  Base colours are quantised to 5 bits/channel
+  // and pre-blended at FOG_N levels, so neighbouring quads share exact colour
+  // strings and the painter can merge them into single canvas paths (the
+  // finer 100 m mesh halves the per-quad colour steps, so banding stays subtle)
+  const FOG_N = 12, HAZE = [26, 14, 16];
+  const palCache = new Map();
+  function fogCol(r, g, b, lvl){
+    const qr = r >> 3, qg = g >> 3, qb = b >> 3;
+    const key = ((qr << 10) | (qg << 5) | qb) * FOG_N + lvl;
+    let s = palCache.get(key);
+    if(s === undefined){
+      const m = 1 - lvl/(FOG_N - 1);
+      s = `rgb(${Math.round(qr*8.2258*m + HAZE[0]*(1-m))},` +
+          `${Math.round(qg*8.2258*m + HAZE[1]*(1-m))},` +
+          `${Math.round(qb*8.2258*m + HAZE[2]*(1-m))})`;
+      palCache.set(key, s);
+    }
+    return s;
+  }
+
+  function buildTerrainMesh(){
+    if(terrainBuilt) return;
+    terrainBuilt = true;
+    verts.length = 0;
+    for(let i = 0; i < NG; i++)
+      for(let j = 0; j < NG; j++){
+        const n = -HALF + i*STEP, e = -HALF + j*STEP;
+        verts.push([e, terrAlt(n, e), n]);
+      }
+    vFlat = new Float64Array(verts.length * 3);
+    for(let i = 0; i < verts.length; i++){
+      vFlat[i*3] = verts[i][0]; vFlat[i*3+1] = verts[i][1]; vFlat[i*3+2] = verts[i][2];
+    }
+    P = new Float64Array(3*verts.length);
+    buildTerrainQuads();
+  }
+  function buildTerrainQuads(){
+    nQ = (NG-1)*(NG-1);
+    qIds = new Int32Array(nQ*4);
+    qCols = new Array(nQ);
+    tDepth = new Float64Array(nQ);
+    tOrder = new Int32Array(nQ);
+    tFog = new Uint8Array(nQ);
+    let k = 0;
+    for(let i = 0; i < NG-1; i++)
+      for(let j = 0; j < NG-1; j++){
+        const ia = vidx(i,j), ib = vidx(i,j+1), ic = vidx(i+1,j+1), id_ = vidx(i+1,j);
+        const a = verts[ia], b = verts[ib], c = verts[ic], d = verts[id_];
+        // normal + light (static); North × East → Up-pointing normal
+        const u = [b[0]-a[0], b[1]-a[1], b[2]-a[2]], v = [d[0]-a[0], d[1]-a[1], d[2]-a[2]];
+        let nx = -(u[1]*v[2]-u[2]*v[1]), ny = -(u[2]*v[0]-u[0]*v[2]), nz = -(u[0]*v[1]-u[1]*v[0]);
+        const nl = Math.hypot(nx, ny, nz) || 1; nx/=nl; ny/=nl; nz/=nl;
+        const ndl = Math.max(0, nx*(-0.45) + ny*0.82 + nz*0.36);
+        const h = (a[1]+b[1]+c[1]+d[1])/4;
+        const t = Math.max(0, Math.min(1, (h+28)/110));
+        const sh = 0.62 + 0.5*ndl;
+        const snow = Math.min(1, Math.max(0, (h-300)/90));
+        const rC = Math.round(((46 + t*(130-46))*sh)*(1-snow) + 236*snow),
+              gC = Math.round(((74 + t*(128-74))*sh)*(1-snow) + 240*snow),
+              bC = Math.round(((46 + t*(88-46))*sh)*(1-snow) + 246*snow);
+        qIds[k] = ia; qIds[k+1] = ib; qIds[k+2] = ic; qIds[k+3] = id_;
+        const cols = new Array(FOG_N);
+        for(let L = 0; L < FOG_N; L++) cols[L] = fogCol(rC, gC, bC, L);
+        qCols[k >> 2] = cols;
+        k += 4;
+      }
+  }
+
+  // ---- UAV model (body: x fwd, y right, z DOWN per aero convention), scaled ~8x ----
+  // Design coords take z as "up-positive"; the ring helpers negate z into the
+  // body frame. Tapered prisms (nose, tail boom, wing panels, swept fin) keep
+  // the shape readable in close chase-cam views, unlike plain boxes.
+  const MSCALE = 8, M = MSCALE;
+  const hx = h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+  const ringX = (x, y0, y1, z0, z1) =>
+    [[x,y0,-z1],[x,y1,-z1],[x,y1,-z0],[x,y0,-z0]].map(p => [p[0]*M, p[1]*M, p[2]*M]);
+  const ringY = (y, x0, x1, z0, z1) =>
+    [[x0,y,-z1],[x1,y,-z1],[x1,y,-z0],[x0,y,-z0]].map(p => [p[0]*M, p[1]*M, p[2]*M]);
+  const ringZ = (z, x0, x1, y0, y1) =>
+    [[x0,y0,-z],[x1,y0,-z],[x1,y1,-z],[x0,y1,-z]].map(p => [p[0]*M, p[1]*M, p[2]*M]);
+  function prism(ringA, ringB, col){
+    // 6 faces of a convex hexahedron; windings auto-corrected so every face
+    // normal points away from the body centroid (normals drive sun shading)
+    const c = ringA.concat(ringB);
+    const ctr = [0, 0, 0];
+    for(const p of c){ ctr[0] += p[0]; ctr[1] += p[1]; ctr[2] += p[2]; }
+    ctr[0] /= 8; ctr[1] /= 8; ctr[2] /= 8;
+    const F = [[0,1,2,3],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]];
+    return F.map(q => {
+      const u = [c[q[1]][0]-c[q[0]][0], c[q[1]][1]-c[q[0]][1], c[q[1]][2]-c[q[0]][2]];
+      const w = [c[q[3]][0]-c[q[0]][0], c[q[3]][1]-c[q[0]][1], c[q[3]][2]-c[q[0]][2]];
+      const nx = u[1]*w[2]-u[2]*w[1], ny = u[2]*w[0]-u[0]*w[2], nz = u[0]*w[1]-u[1]*w[0];
+      const mx = (c[q[0]][0]+c[q[1]][0]+c[q[2]][0]+c[q[3]][0])/4 - ctr[0];
+      const my = (c[q[0]][1]+c[q[1]][1]+c[q[2]][1]+c[q[3]][1])/4 - ctr[1];
+      const mz = (c[q[0]][2]+c[q[1]][2]+c[q[2]][2]+c[q[3]][2])/4 - ctr[2];
+      const ids = (nx*mx + ny*my + nz*mz) < 0 ? [q[3],q[2],q[1],q[0]] : q;
+      return {v: ids.map(i => c[i]), col};
+    });
+  }
+  const MODEL = [
+    // spinner cone + cowl
+    ...prism(ringX(2.45,-0.03,0.03,-0.03,0.03), ringX(1.95,-0.13,0.13,-0.13,0.13), hx("#7c5510")),
+    ...prism(ringX(1.95,-0.13,0.13,-0.13,0.13), ringX(1.45,-0.29,0.29,-0.26,0.26), hx("#d2861a")),
+    // fuselage: nose section / mid / rear taper / tail boom
+    ...prism(ringX(1.45,-0.29,0.29,-0.26,0.26), ringX(0.50,-0.32,0.32,-0.30,0.30), hx("#e0931f")),
+    ...prism(ringX(0.50,-0.32,0.32,-0.30,0.30),  ringX(-0.95,-0.32,0.32,-0.30,0.30), hx("#e0931f")),
+    ...prism(ringX(-0.95,-0.32,0.32,-0.30,0.30), ringX(-1.90,-0.15,0.15,-0.17,0.17), hx("#e0931f")),
+    ...prism(ringX(-1.90,-0.15,0.15,-0.17,0.17), ringX(-2.32,-0.07,0.07,-0.09,0.09), hx("#d2861a")),
+    // canopy
+    ...prism(ringX(0.85,-0.20,0.20,0.28,0.44), ringX(-0.35,-0.15,0.15,0.28,0.31), hx("#2b4660")),
+    // wing panels: tapered, with dihedral
+    ...prism(ringY(0.14, 0.45,-0.40,-0.06,0.10),  ringY(1.85, 0.28,-0.22,0.09,0.25), hx("#ffb02e")),
+    ...prism(ringY(-0.14, 0.45,-0.40,-0.06,0.10), ringY(-1.85, 0.28,-0.22,0.09,0.25), hx("#ffb02e")),
+    // tailplane panels
+    ...prism(ringY(0.10,-1.70,-2.30,0.30,0.40),  ringY(0.80,-1.95,-2.38,0.35,0.43), hx("#ffb02e")),
+    ...prism(ringY(-0.10,-1.70,-2.30,0.30,0.40), ringY(-0.80,-1.95,-2.38,0.35,0.43), hx("#ffb02e")),
+    // vertical fin (swept)
+    ...prism(ringZ(0.40,-1.70,-2.35,-0.05,0.05), ringZ(1.08,-1.98,-2.42,-0.03,0.03), hx("#d2861a")),
+  ];
+
+  // ---- camera + input ----
+  const cam = { yaw: 0.55, pit: 0.62, dist: 2400, tx: 0, ty: 60, tz: 0 };
+  let follow = true, _chase = false;
+  function resetView(){ cam.yaw = 0.55; cam.pit = 0.62; cam.dist = 2400; cam.tx = 0; cam.ty = 60; cam.tz = 0; follow = true; syncFollowBtn(); syncChaseBtn(); }
+  function syncFollowBtn(){
+    const b = $("btnFollow");
+    if(b){ b.textContent = "FOLLOW: " + (follow ? "ON" : "OFF");
+           b.classList.toggle("active", follow); }
+  }
+  function syncChaseBtn(){
+    const b = $("btnChase");
+    if(b){ b.textContent = "CHASE CAM" + (_chase ? " ●" : "");
+           b.classList.toggle("active", _chase); }
+  }
+  function userTakesCam(){ if(_chase){ _chase = false; syncChaseBtn(); } }
+
+  // ---- frame transform ----
+  let f = 1, cxs = 0, cys = 0;
+  let CY = 1, SY = 0, CP = 1, SP = 0;      // camera trig, refreshed each frame
+  const SCR = [0, 0, 0];                    // shared projection scratch
+  const WP = [0, 0, 0];                     // shared world-point scratch
+  function projectAll(){
+    for(let i = 0, n = vFlat.length; i < n; i += 3){
+      const dx = vFlat[i]-cam.tx, dy = vFlat[i+1]-cam.ty, dz = vFlat[i+2]-cam.tz;
+      const x1 = CY*dx - SY*dz, z1 = SY*dx + CY*dz;
+      const y2 = CP*dy + SP*z1, z2 = -SP*dy + CP*z1;
+      const depth = cam.dist + z2;
+      if(depth < 30){ P[i] = NaN; P[i+1] = NaN; P[i+2] = depth; continue; }
+      P[i] = cxs + f*x1/depth; P[i+1] = cys - f*y2/depth; P[i+2] = depth;
+    }
+  }
+  function projInto(p, out){
+    const dx = p[0]-cam.tx, dy = p[1]-cam.ty, dz = p[2]-cam.tz;
+    const x1 = CY*dx - SY*dz, z1 = SY*dx + CY*dz;
+    const y2 = CP*dy + SP*z1, z2 = -SP*dy + CP*z1;
+    const depth = cam.dist + z2;
+    if(depth < 30) return false;
+    out[0] = cxs + f*x1/depth; out[1] = cys - f*y2/depth; out[2] = depth;
+    return true;
+  }
+
+  function rotBodyToWorld(eul){
+    const phi = eul[0], th = eul[1], psi = eul[2];
+    const cph = Math.cos(phi), sph = Math.sin(phi);
+    const cth = Math.cos(th), sth = Math.sin(th);
+    const cps = Math.cos(psi), sps = Math.sin(psi);
+    // v_ned = Rz(psi)·Ry(theta)·Rx(phi) · v_body ; display [E,Up,N] = [v1, -v2, v0]
+    const R = [
+      [cth*cps, sph*sth*cps - cph*sps, cph*sth*cps + sph*sps],
+      [cth*sps, sph*sth*sps + cph*cps, cph*sth*sps - sph*cps],
+      [-sth,    sph*cth,               cph*cth]];
+    return v => {
+      const n0 = R[0][0]*v[0] + R[0][1]*v[1] + R[0][2]*v[2];
+      const n1 = R[1][0]*v[0] + R[1][1]*v[1] + R[1][2]*v[2];
+      const n2 = R[2][0]*v[0] + R[2][1]*v[1] + R[2][2]*v[2];
+      return [n1, -n2, n0];
+    };
+  }
+
+  // ---- airport + scenery geometry (built once from hello.world) ----
+  let sceneBuilt = false, sceneFaces = [], trees3 = [], runwayPoly = null,
+      runwayDashes = [], towerQuads = [], towerTop = null,
+      lakePoly = null, roadQuads = [];
+  function buildScene(){
+    if(sceneBuilt || !hello || !hello.world) return;
+    sceneBuilt = true;
+    const w = hello.world, ap = w.airport || {};
+    const rw = ap.runway;
+    if(rw){
+      const flat = terrAlt(0,0) + 0.25, hw = rw.width_m/2, hl = rw.length_m/2;
+      runwayPoly = {pts: [[rw.e-hw, flat, rw.n-hl],[rw.e+hw, flat, rw.n-hl],
+                          [rw.e+hw, flat, rw.n+hl],[rw.e-hw, flat, rw.n+hl]], col: "#3a3c42"};
+      for(let k=-4;k<=4;k++){ const n0 = k*80-20;
+        runwayDashes.push([[rw.e, flat+0.05, n0],[rw.e, flat+0.05, n0+40]]); }
+    }
+    const boxes = [];
+    if(ap.hangar) boxes.push({n: ap.hangar.n, e: ap.hangar.e, w_m: ap.hangar.w_m,
+                              d_m: ap.hangar.d_m, h_m: ap.hangar.h_m, col: [150,158,170]});
+    for(const b of w.buildings||[]) boxes.push({...b, col: [168,150,128]});
+    for(const b of boxes){
+      const base = terrAlt(b.n, b.e), z0 = base, z1 = base + b.h_m;
+      const e0=b.e-b.w_m/2, e1=b.e+b.w_m/2, n0=b.n-b.d_m/2, n1=b.n+b.d_m/2;
+      const v = [[e0,z0,n0],[e1,z0,n0],[e1,z0,n1],[e0,z0,n1],
+                 [e0,z1,n0],[e1,z1,n0],[e1,z1,n1],[e0,z1,n1]];
+      const fs = [[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]];
+      for(const q of fs){
+        const pts = q.map(i=>v[i]);
+        const u=[pts[1][0]-pts[0][0],pts[1][1]-pts[0][1],pts[1][2]-pts[0][2]];
+        const vv=[pts[3][0]-pts[0][0],pts[3][1]-pts[0][1],pts[3][2]-pts[0][2]];
+        let nx=u[1]*vv[2]-u[2]*vv[1], ny=u[2]*vv[0]-u[0]*vv[2], nz=u[0]*vv[1]-u[1]*vv[0];
+        const nl=Math.hypot(nx,ny,nz)||1;
+        const lam=0.62+0.38*Math.max(0,(nx*(-0.45)+ny*0.82+nz*0.36)/nl);
+        sceneFaces.push({pts, col: [Math.round(b.col[0]*lam), Math.round(b.col[1]*lam),
+                                    Math.round(b.col[2]*lam)],
+                         css: `rgb(${Math.round(b.col[0]*lam)},${Math.round(b.col[1]*lam)},${Math.round(b.col[2]*lam)})`});
+      }
+    }
+    const tw = ap.tower;
+    if(tw){
+      const tb = terrAlt(tw.n, tw.e), segs = 10, z0 = tb, z1 = tb + tw.h_m*0.62;
+      const ring0=[], ring1=[];
+      for(let s=0;s<segs;s++){ const a=2*Math.PI*s/segs;
+        ring0.push([tw.e+Math.cos(a)*tw.radius_m, z0, tw.n+Math.sin(a)*tw.radius_m]);
+        ring1.push([tw.e+Math.cos(a)*tw.radius_m*1.5, z1, tw.n+Math.sin(a)*tw.radius_m*1.5]); }
+      for(let s=0;s<segs;s++){ const s2=(s+1)%segs;
+        towerQuads.push([ring0[s],ring0[s2],ring1[s2],ring1[s]]); }
+      const z2 = z1 + tw.h_m*0.38, cw = tw.radius_m*1.6;
+      const v = [[tw.e-cw,z1,tw.n-cw],[tw.e+cw,z1,tw.n-cw],[tw.e+cw,z1,tw.n+cw],[tw.e-cw,z1,tw.n+cw],
+                 [tw.e-cw,z2,tw.n-cw],[tw.e+cw,z2,tw.n-cw],[tw.e+cw,z2,tw.n+cw],[tw.e-cw,z2,tw.n+cw]];
+      for(const q of [[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]])
+        towerQuads.push(q.map(i=>v[i]));
+      towerTop = [tw.e, z2 + 4, tw.n];
+    }
+    for(const t of w.trees||[]){
+      const base = terrAlt(t.n, t.e);
+      trees3.push({e: t.e, n: t.n, b: base, tp: base + t.h_m, r: t.r_m});
+    }
+    if(w.lake){
+      const lvl = terrAlt(w.lake.n, w.lake.e) + 0.3;
+      lakePoly = [];
+      for(let s2 = 0; s2 < 24; s2++){
+        const a = 2*Math.PI*s2/24;
+        lakePoly.push([w.lake.e + Math.cos(a)*w.lake.radius_m*0.98, lvl, w.lake.n + Math.sin(a)*w.lake.radius_m*0.98]);
+      }
+    }
+    for(const road of w.roads || []){
+      for(let k = 0; k < road.length-1; k++){
+        const n0 = road[k][0], e0 = road[k][1], n1 = road[k+1][0], e1 = road[k+1][1];
+        const segLen = Math.hypot(n1-n0, e1-e0), steps = Math.max(1, Math.round(segLen/110));
+        const dn = (n1-n0)/segLen, de = (e1-e0)/segLen, pn = -de, pe = dn;
+        for(let s2 = 0; s2 < steps; s2++){
+          const a0 = s2/steps, a1 = (s2+1)/steps;
+          const na = n0+(n1-n0)*a0, ea = e0+(e1-e0)*a0, nb = n0+(n1-n0)*a1, eb = e0+(e1-e0)*a1;
+          const za = terrAlt(na, ea)+0.25, zb = terrAlt(nb, eb)+0.25;
+          roadQuads.push([[ea+pe*3.5, za, na+pn*3.5],[eb+pe*3.5, zb, nb+pn*3.5],
+                          [eb-pe*3.5, zb, nb-pn*3.5],[ea-pe*3.5, za, na-pn*3.5]]);
+        }
+      }
+    }
+  }
+
+  // ---- pooled painter entries: reused across frames, no per-quad allocation ----
+  // t: 0 = polygon (buf/n, fill f, stroke s+w) · 1 = line · 2 = custom fn · 3 = track bucket
+  const entPool = [], ents = [];
+  let entN = 0;
+  const WV = new Float64Array(12);          // UAV model world verts (scratch)
+  function ent(){
+    let e = entPool[entN];
+    if(!e){
+      e = {d:0, t:0, buf:new Float64Array(64), n:0, f:null, s:null, w:1, fn:null};
+      entPool[entN] = e;
+    }
+    entN++;
+    e.t = 0; e.n = 0; e.f = null; e.s = null; e.w = 1; e.fn = null;
+    return e;
+  }
+  function drawEnt(x, e){
+    if(e.t === 0){
+      x.beginPath();
+      x.moveTo(e.buf[0], e.buf[1]);
+      for(let i = 1; i < e.n; i++) x.lineTo(e.buf[i*2], e.buf[i*2+1]);
+      x.closePath();
+      if(e.f){ x.fillStyle = e.f; x.fill(); }
+      if(e.s){ x.strokeStyle = e.s; x.lineWidth = e.w; x.stroke(); }
+    } else if(e.t === 1){
+      x.strokeStyle = e.s; x.lineWidth = e.w;
+      x.beginPath(); x.moveTo(e.buf[0], e.buf[1]); x.lineTo(e.buf[2], e.buf[3]); x.stroke();
+    } else if(e.t === 3){
+      x.strokeStyle = e.f; x.lineWidth = e.w;
+      x.beginPath();
+      for(let i = 0; i < e.n; i += 4){
+        x.moveTo(e.buf[i], e.buf[i+1]); x.lineTo(e.buf[i+2], e.buf[i+3]);
+      }
+      x.stroke();
+    } else if(e.t === 2 && e.fn){
+      e.fn();
+    }
+  }
+
+  // flight track: 4 depth buckets, one path+stroke per bucket
+  // (was one closure + one stroke per segment — up to 2,500 per frame)
+  const TRACK_BUCKETS = 4;
+  const trackBuf = [], trackCnt = new Int32Array(TRACK_BUCKETS), trackDep = new Float64Array(TRACK_BUCKETS);
+  for(let i = 0; i < TRACK_BUCKETS; i++) trackBuf.push(new Float64Array(2600*4));
+  const trackBW = [2200, 4200, 6800, 1e9];
+  const trackCol = ["rgba(255,64,64,0.80)", "rgba(255,64,64,0.55)", "rgba(255,64,64,0.36)", "rgba(255,64,64,0.24)"];
+  const TOWER_COL = "rgb(150,160,175)", ROAD_COL = "rgb(66,66,72)", LAKE_COL = "#2a6ea8";
+  const treeBuf = new Float64Array(4096*5);
+  const ringB = new Float64Array(24*3), ringT = new Float64Array(24*3);
+  const vB = new Uint8Array(24), vT = new Uint8Array(24);
+  let skyGrad = null, skyGradH = 0;
+
+  function draw(canvas, acPos, acEul, wps, wpsCap, wpsCur, nfzs, tUpd){
+    if(hello && hello.world && !terrainBuilt) buildTerrainMesh();
+    const x = canvas.getContext("2d"), W = canvas.width, H = canvas.height;
+    cxs = W/2; cys = H/2;
+    f = 0.5*Math.min(W, H) / Math.tan(30*0.01745);
+    CY = Math.cos(cam.yaw); SY = Math.sin(cam.yaw);
+    CP = Math.cos(cam.pit); SP = Math.sin(cam.pit);
+    if(!skyGrad || skyGradH !== H){
+      skyGradH = H;
+      skyGrad = x.createLinearGradient(0, 0, 0, H);
+      skyGrad.addColorStop(0, "#0b0709"); skyGrad.addColorStop(0.55, "#170d10"); skyGrad.addColorStop(1, "#080405");
+    }
+    x.fillStyle = skyGrad; x.fillRect(0, 0, W, H);
+
+    if(follow && acPos){ cam.tx += (acPos[0]-cam.tx)*0.12; cam.ty += (Math.max(acPos[1], 15)-cam.ty)*0.12; cam.tz += (acPos[2]-cam.tz)*0.12; }
+
+    // draw distance: terrain dissolves into the sky haze past FOG0 and is
+    // culled entirely at FAR — the far mesh was thousands of ~20 px fills.
+    // FAR is capped so max zoom-out doesn't pull in the whole 9 km mesh.
+    const FAR = Math.min(10000, Math.max(5200, cam.dist + 3000));
+    const FOG0 = Math.min(3200, FAR*0.44);
+    const fogK = (FOG_N-1) / Math.max(1, FAR - FOG0);
+
+    projectAll();
+    entN = 0;
+
+    // ---- terrain visibility pass: typed arrays only, zero allocation ----
+    let nVis = 0;
+    for(let qi = 0; qi < nQ; qi++){
+      const b4 = qi*4;
+      const p0 = qIds[b4]*3, p1 = qIds[b4+1]*3, p2 = qIds[b4+2]*3, p3 = qIds[b4+3]*3;
+      if(Number.isNaN(P[p0]) || Number.isNaN(P[p1]) || Number.isNaN(P[p2]) || Number.isNaN(P[p3])) continue;
+      const x0 = P[p0], y0 = P[p0+1], x1 = P[p1], y1 = P[p1+1], x2 = P[p2], y2 = P[p2+1], x3 = P[p3], y3 = P[p3+1];
+      if((x0 < -80 && x1 < -80 && x2 < -80 && x3 < -80) ||
+         (x0 > W+80 && x1 > W+80 && x2 > W+80 && x3 > W+80) ||
+         (y0 < -80 && y1 < -80 && y2 < -80 && y3 < -80) ||
+         (y0 > H+80 && y1 > H+80 && y2 > H+80 && y3 > H+80)) continue;
+      const dAvg = (P[p0+2] + P[p1+2] + P[p2+2] + P[p3+2]) * 0.25;
+      if(dAvg < 20 || dAvg > FAR) continue;
+      let fi = ((dAvg - FOG0) * fogK) | 0;
+      if(fi < 0) fi = 0; else if(fi >= FOG_N) fi = FOG_N - 1;
+      if(fi >= 5){
+        // well-fogged quads that compress to a sub-pixel-high sliver (grazing
+        // view across flat ground) are invisible — skip them; the haze gap
+        // just reads as extra distance fog
+        const wy = Math.max(y0, y1, y2, y3) - Math.min(y0, y1, y2, y3);
+        if(wy < 0.5) continue;
+      }
+      tDepth[qi] = dAvg;
+      tFog[qi] = fi;
+      tOrder[nVis++] = qi;
+    }
+    tOrder.subarray(0, nVis).sort((a, b) => tDepth[b] - tDepth[a]);
+
+    // ---- scenery + markers as pooled entries ----
+    if(hello && hello.world) buildScene();
+
+    if(runwayPoly){
+      const e = ent(); let ok = true, dep = 0;
+      for(let i = 0; i < 4; i++){
+        if(!projInto(runwayPoly.pts[i], SCR)){ ok = false; break; }
+        e.buf[i*2] = SCR[0]; e.buf[i*2+1] = SCR[1]; dep += SCR[2];
+      }
+      if(ok){ e.n = 4; e.f = runwayPoly.col; e.d = dep/4; } else entN--;
+      for(const [a2, b2] of runwayDashes){
+        const okA = projInto(a2, SCR);
+        const xa = SCR[0], ya = SCR[1], da = SCR[2];
+        const okB = projInto(b2, SCR);
+        if(okA && okB){
+          const le = ent(); le.t = 1;
+          le.buf[0] = xa; le.buf[1] = ya; le.buf[2] = SCR[0]; le.buf[3] = SCR[1];
+          le.s = "#e8e8e8"; le.w = 2; le.d = (da + SCR[2])/2 + 0.05;
+        }
+      }
+    }
+    for(const fc of sceneFaces){
+      const e = ent(); let ok = true, dep = 0;
+      for(let i = 0; i < fc.pts.length; i++){
+        if(!projInto(fc.pts[i], SCR)){ ok = false; break; }
+        e.buf[i*2] = SCR[0]; e.buf[i*2+1] = SCR[1]; dep += SCR[2];
+      }
+      if(!ok){ entN--; continue; }
+      e.n = fc.pts.length; e.f = fc.css; e.d = dep/fc.pts.length;
+    }
+    if(lakePoly){
+      const e = ent(); let ok = true, dep = 0;
+      for(let i = 0; i < lakePoly.length; i++){
+        if(!projInto(lakePoly[i], SCR)){ ok = false; break; }
+        e.buf[i*2] = SCR[0]; e.buf[i*2+1] = SCR[1]; dep += SCR[2];
+      }
+      if(ok){ e.n = lakePoly.length; e.f = LAKE_COL; e.d = dep/lakePoly.length; } else entN--;
+    }
+    for(const q of roadQuads){
+      const e = ent(); let ok = true, dep = 0;
+      for(let i = 0; i < 4; i++){
+        if(!projInto(q[i], SCR)){ ok = false; break; }
+        e.buf[i*2] = SCR[0]; e.buf[i*2+1] = SCR[1]; dep += SCR[2];
+      }
+      if(ok){ e.n = 4; e.f = ROAD_COL; e.d = dep/4; } else entN--;
+    }
+    for(const q of towerQuads){
+      const e = ent(); let ok = true, dep = 0;
+      for(let i = 0; i < 4; i++){
+        if(!projInto(q[i], SCR)){ ok = false; break; }
+        e.buf[i*2] = SCR[0]; e.buf[i*2+1] = SCR[1]; dep += SCR[2];
+      }
+      if(ok){ e.n = 4; e.f = TOWER_COL; e.d = dep/4; } else entN--;
+    }
+    if(towerTop && projInto(towerTop, SCR)){
+      const tx = SCR[0], ty = SCR[1], td = SCR[2];
+      const e = ent(); e.t = 2; e.d = td - 1;
+      e.fn = () => { x.fillStyle = "#ffb39e"; x.font = "bold 15px Rajdhani,Consolas"; x.textAlign = "center"; x.fillText("ATC", tx, ty); };
+    }
+
+    // NFZ cylinders
+    for(const z of (nfzs || [])){
+      const [cn0, ce0] = z.center_ned;
+      const segs = 22, r = z.radius_m;
+      const zb = terrAlt(cn0, ce0) - 4, zt = Math.max(z.ceil_m - BASE, zb + 60);
+      for(let s = 0; s < segs; s++){
+        const a = s/segs*Math.PI*2;
+        WP[0] = ce0 + Math.cos(a)*r; WP[2] = cn0 + Math.sin(a)*r;
+        WP[1] = zb;
+        vB[s] = projInto(WP, SCR) ? 1 : 0;
+        ringB[s*3] = SCR[0]; ringB[s*3+1] = SCR[1]; ringB[s*3+2] = SCR[2];
+        WP[1] = zt;
+        vT[s] = projInto(WP, SCR) ? 1 : 0;
+        ringT[s*3] = SCR[0]; ringT[s*3+1] = SCR[1]; ringT[s*3+2] = SCR[2];
+      }
+      for(let s = 0; s < segs; s++){
+        const s2 = (s+1)%segs;
+        if(!(vB[s] && vB[s2] && vT[s] && vT[s2])) continue;
+        const b1 = s*3, b2 = s2*3;
+        const e = ent(); e.n = 4;
+        e.buf[0]=ringB[b1]; e.buf[1]=ringB[b1+1];
+        e.buf[2]=ringB[b2]; e.buf[3]=ringB[b2+1];
+        e.buf[4]=ringT[b2]; e.buf[5]=ringT[b2+1];
+        e.buf[6]=ringT[b1]; e.buf[7]=ringT[b1+1];
+        e.d = (ringB[b1+2]+ringB[b2+2]+ringT[b1+2]+ringT[b2+2])/4;
+        e.f = "rgba(255,70,70,.10)"; e.s = "rgba(255,90,90,.55)";
+      }
+      WP[0] = ce0; WP[1] = zt; WP[2] = cn0;
+      if(projInto(WP, SCR)){
+        const tx = SCR[0], ty = SCR[1], td = SCR[2], name = z.name || "NFZ";
+        const e = ent(); e.t = 2; e.d = td - 1;
+        e.fn = () => { x.fillStyle = "#ff9090"; x.font = "bold 15px Rajdhani,Consolas"; x.textAlign = "center";
+                       x.fillText(name, tx, ty-8); };
+      }
+    }
+
+    // waypoint pillars
+    (wps || []).forEach((w, i) => {
+      const zb = terrAlt(w.n_m, w.e_m), zt = Math.max(w.alt_msl_m - BASE, zb + 20);
+      WP[0] = w.e_m; WP[1] = zb; WP[2] = w.n_m;
+      const okB = projInto(WP, SCR);
+      const bx = SCR[0], by = SCR[1], bd = SCR[2];
+      WP[1] = zt;
+      const okT = projInto(WP, SCR);
+      if(!okB || !okT) return;
+      const tx = SCR[0], ty = SCR[1], td = SCR[2];
+      const cur = i === wpsCur, done = wpsCap && wpsCap[i];
+      const col = done ? "#3ecf6f" : cur ? "#ffd24a" : "#ff5d6e";
+      const e = ent(); e.t = 2; e.d = (bd + td)/2 - 2;
+      e.fn = () => {
+        x.strokeStyle = col; x.lineWidth = cur ? 3 : 1.6; x.setLineDash(cur ? [] : [6,5]);
+        x.beginPath(); x.moveTo(bx, by); x.lineTo(tx, ty); x.stroke(); x.setLineDash([]);
+        x.fillStyle = col;
+        x.beginPath();
+        x.moveTo(tx, ty-11); x.lineTo(tx+8, ty); x.lineTo(tx, ty+11); x.lineTo(tx-8, ty);
+        x.closePath(); x.fill();
+        if(cur){ x.strokeStyle = "rgba(255,210,74,.7)"; x.lineWidth = 2;
+          x.beginPath(); x.arc(tx, ty, 18, 0, 7); x.stroke(); }
+        x.fillStyle = "#e8dcdc"; x.font = "bold 14px Rajdhani,Consolas"; x.textAlign = "left";
+        x.fillText(String(i+1), tx+14, ty-10);
+        x.fillStyle = "#96858a"; x.font = "11px Rajdhani,Consolas";
+        x.fillText((w.alt_msl_m*3.28084).toFixed(0) + " ft", tx+14, ty+5);
+      };
+    });
+
+    // home marker
+    {
+      WP[0] = 0; WP[1] = terrAlt(0, 0) + 6; WP[2] = 0;
+      if(projInto(WP, SCR)){
+        const hx2 = SCR[0], hy = SCR[1], hd = SCR[2];
+        const e = ent(); e.t = 2; e.d = hd - 3;
+        e.fn = () => {
+          x.fillStyle = "#ff7b7b"; x.beginPath();
+          x.moveTo(hx2, hy-13); x.lineTo(hx2-10, hy+9); x.lineTo(hx2+10, hy+9);
+          x.closePath(); x.fill();
+          x.fillStyle = "#fff"; x.font = "bold 12px Rajdhani,Consolas"; x.textAlign = "center"; x.fillText("H", hx2, hy+6);
+        };
+      }
+    }
+
+    // flight track: bucketed by depth, one stroke per bucket
+    trackCnt.fill(0); trackDep.fill(0);
+    if(track.length > 1){
+      for(let i = 1; i < track.length; i++){
+        const a = track[i-1], b2 = track[i];
+        WP[0] = a[1]; WP[1] = a[2]; WP[2] = a[0];
+        const okA = projInto(WP, SCR);
+        const xa = SCR[0], ya = SCR[1], da = SCR[2];
+        WP[0] = b2[1]; WP[1] = b2[2]; WP[2] = b2[0];
+        if(!okA || !projInto(WP, SCR)) continue;
+        const d = (da + SCR[2]) * 0.5;
+        let bk = 0;
+        while(bk < TRACK_BUCKETS-1 && d > trackBW[bk]) bk++;
+        const tb = trackBuf[bk], o = trackCnt[bk]*4;
+        if(o + 4 > tb.length) continue;
+        tb[o] = xa; tb[o+1] = ya; tb[o+2] = SCR[0]; tb[o+3] = SCR[1];
+        trackCnt[bk]++; trackDep[bk] += d;
+      }
+      for(let bk = 0; bk < TRACK_BUCKETS; bk++){
+        if(!trackCnt[bk]) continue;
+        const e = ent(); e.t = 3; e.buf = trackBuf[bk]; e.n = trackCnt[bk]*4;
+        e.d = trackDep[bk]/trackCnt[bk] + 1;
+        e.f = trackCol[bk]; e.w = 2.2;
+      }
+    }
+
+    // UAV model
+    if(acPos && acEul){
+      const toW = rotBodyToWorld(acEul);
+      for(const face of MODEL){
+        const e = ent(); let ok = true, dep = 0;
+        for(let vi = 0; vi < 4; vi++){
+          const wv = toW(face.v[vi]);
+          WV[vi*3] = wv[0]; WV[vi*3+1] = wv[1]; WV[vi*3+2] = wv[2];
+          WP[0] = acPos[0]+wv[0]; WP[1] = acPos[1]+wv[1]; WP[2] = acPos[2]+wv[2];
+          if(!projInto(WP, SCR)){ ok = false; break; }
+          e.buf[vi*2] = SCR[0]; e.buf[vi*2+1] = SCR[1]; dep += SCR[2];
+        }
+        if(!ok){ entN--; continue; }
+        e.n = 4; e.d = dep/4 - 4;
+        // face shading by normal
+        const ux = WV[3]-WV[0], uy = WV[4]-WV[1], uz = WV[5]-WV[2];
+        const vx = WV[9]-WV[0], vy = WV[10]-WV[1], vz = WV[11]-WV[2];
+        let nx = uy*vz-uz*vy, ny = uz*vx-ux*vz, nz = ux*vy-uy*vx;
+        const nl = Math.hypot(nx, ny, nz) || 1;
+        const lam = 0.62 + 0.38*Math.max(0, (nx*(-0.45)+ny*0.82+nz*0.36)/nl);
+        e.f = `rgb(${Math.round(face.col[0]*lam)},${Math.round(face.col[1]*lam)},${Math.round(face.col[2]*lam)})`;
+        e.s = "rgba(0,0,0,.25)";
+      }
+      // locator ring so the UAV is always findable
+      WP[0] = acPos[0]; WP[1] = acPos[1]; WP[2] = acPos[2];
+      if(projInto(WP, SCR)){
+        const rx = SCR[0], ry = SCR[1], rd = SCR[2];
+        const e = ent(); e.t = 2; e.d = rd - 5;
+        e.fn = () => {
+          x.strokeStyle = "#ffd24a"; x.lineWidth = 2;
+          x.beginPath(); x.ellipse(rx, ry, 26, 9, 0, 0, 7); x.stroke();
+          x.fillStyle = "rgba(255,210,74,.9)";
+          x.beginPath(); x.arc(rx, ry, 3, 0, 7); x.fill();
+        };
+      }
+      // callout
+      WP[0] = acPos[0]; WP[1] = acPos[1]+4; WP[2] = acPos[2];
+      if(projInto(WP, SCR)){
+        const px = SCR[0], py = SCR[1], pd = SCR[2];
+        const e = ent(); e.t = 2; e.d = pd - 6;
+        e.fn = () => {
+          x.strokeStyle = "rgba(255,210,74,.8)"; x.lineWidth = 1.4;
+          x.beginPath(); x.moveTo(px, py); x.lineTo(px+26, py-30); x.lineTo(px+120, py-30); x.stroke();
+          x.fillStyle = "rgba(10,7,8,.85)"; x.fillRect(px+120, py-46, 190, 34);
+          x.strokeStyle = "rgba(255,210,74,.5)"; x.strokeRect(px+120, py-46, 190, 34);
+          x.fillStyle = "#ffd24a"; x.font = "bold 13px Rajdhani,Consolas"; x.textAlign = "left";
+          if(D){
+            x.fillText(`IAS ${(D.pitot.ias_mps*KT).toFixed(0)} kt  ALT ${(D.pitot.baro_alt_msl_m*FT).toFixed(0)} ft`, px+128, py-31);
+            x.fillStyle = "#96858a"; x.font = "11px Rajdhani,Consolas";
+            x.fillText(`AGL ${D.agl_m.toFixed(0)} m  RPM ${D.engine_sensors.rpm.toFixed(0)}`, px+128, py-17);
+          }
+        };
+      }
+    }
+
+    // ---- painter's algorithm: scenery entries merged with terrain quads.
+    // Terrain is drawn straight from the typed arrays; quads sharing a
+    // quantised colour accumulate into one canvas path (few big fills).
+    ents.length = 0;
+    for(let i = 0; i < entN; i++) ents.push(entPool[i]);
+    ents.sort((a, b) => b.d - a.d);
+    let ti = 0, ei = 0, curCol = null, open = false;
+    while(ti < nVis || ei < ents.length){
+      const useE = ti >= nVis ? true
+                 : ei >= ents.length ? false
+                 : ents[ei].d > tDepth[tOrder[ti]] + 12;   // scenery wins near-ties
+      if(useE){
+        // flush the accumulated terrain path first: drawEnt issues its own
+        // beginPath(), which would otherwise wipe the pending quads
+        if(open){ x.fill(); open = false; }
+        drawEnt(x, ents[ei++]);
+      } else {
+        const qi = tOrder[ti++];
+        const col = qCols[qi][tFog[qi]];
+        if(open && col !== curCol){ x.fill(); open = false; }
+        if(!open){ x.beginPath(); x.fillStyle = col; curCol = col; open = true; }
+        const b4 = qi*4;
+        const i0 = qIds[b4]*3, i1 = qIds[b4+1]*3, i2 = qIds[b4+2]*3, i3 = qIds[b4+3]*3;
+        x.moveTo(P[i0], P[i0+1]);
+        x.lineTo(P[i1], P[i1+1]);
+        x.lineTo(P[i2], P[i2+1]);
+        x.lineTo(P[i3], P[i3+1]);
+        x.closePath();
+      }
+    }
+    if(open) x.fill();
+
+    // trees: two draw calls total (one stroked path for trunks, one filled
+    // path for canopies — every tree shares the same two colours)
+    if(trees3.length){
+      let nTr = 0;
+      for(const t of trees3){
+        WP[0] = t.e; WP[1] = t.b; WP[2] = t.n;
+        if(!projInto(WP, SCR)) continue;
+        if(SCR[2] > 3600) continue;
+        const bx = SCR[0], by = SCR[1], bd = SCR[2];
+        WP[1] = t.tp;
+        if(!projInto(WP, SCR)) continue;
+        const tx = SCR[0], ty = SCR[1];
+        if((bx < -40 && tx < -40) || (bx > W+40 && tx > W+40)) continue;
+        if((by < -40 && ty < -40) || (by > H+40 && ty > H+40)) continue;
+        const o = nTr*5;
+        if(o + 5 > treeBuf.length) break;
+        treeBuf[o] = bx; treeBuf[o+1] = by; treeBuf[o+2] = tx; treeBuf[o+3] = ty;
+        treeBuf[o+4] = Math.max(1.5, t.r * f / bd);
+        nTr++;
+      }
+      x.strokeStyle = "#4a341e"; x.lineWidth = 1.5;
+      x.beginPath();
+      for(let i = 0; i < nTr; i++){
+        const o = i*5, bx = treeBuf[o], by = treeBuf[o+1], tx = treeBuf[o+2], ty = treeBuf[o+3];
+        x.moveTo(bx, by); x.lineTo(bx + (tx-bx)*0.3, by + (ty-by)*0.3);
+      }
+      x.stroke();
+      x.fillStyle = "#225428";
+      x.beginPath();
+      for(let i = 0; i < nTr; i++){
+        const o = i*5, bx = treeBuf[o], by = treeBuf[o+1], tx = treeBuf[o+2], ty = treeBuf[o+3], wpx = treeBuf[o+4];
+        x.moveTo(tx, ty); x.lineTo(bx - wpx, by); x.lineTo(bx + wpx, by); x.closePath();
+      }
+      x.fill();
+    }
+
+    // wreck: smoke column + flame + CRASH SITE label
+    if(D.crash && D.crash.crashed && acPos){
+      const tnow = performance.now()/1000;
+      for(let i=0;i<6;i++){
+        const ph = (tnow*0.45 + i/6)%1;
+        const up = acPos[1] + 2 + ph*55, drift = Math.sin(tnow*0.7+i)*ph*12;
+        WP[0] = acPos[0]+drift; WP[1] = up; WP[2] = acPos[2]+drift*0.6;
+        if(!projInto(WP, SCR)) continue;
+        const r = Math.max(2, f*(2+ph*9)/SCR[2]);
+        const g = Math.round(70+90*ph);
+        x.fillStyle = `rgba(${g},${g},${g},0.75)`;
+        x.beginPath(); x.arc(SCR[0], SCR[1], r, 0, 7); x.fill();
+      }
+      WP[0] = acPos[0]; WP[1] = acPos[1]+1.5; WP[2] = acPos[2];
+      if(projInto(WP, SCR)){
+        const fl = Math.max(2, f*(1.2+0.5*Math.sin(tnow*23))/SCR[2]);
+        x.fillStyle = "rgba(255,120,30,0.85)";
+        x.beginPath(); x.arc(SCR[0], SCR[1], fl, 0, 7); x.fill();
+      }
+      WP[0] = acPos[0]; WP[1] = acPos[1]+70; WP[2] = acPos[2];
+      if(projInto(WP, SCR)){
+        x.fillStyle = "#ff9a9a"; x.font = "bold 14px Rajdhani,Consolas"; x.textAlign = "center";
+        x.fillText("CRASH SITE", SCR[0], SCR[1]);
+      }
+    }
+
+    // compass + scale
+    x.save(); x.translate(W-52, 52);
+    x.rotate(-cam.yaw);
+    x.fillStyle = "#ff9090"; x.beginPath();
+    x.moveTo(0,-20); x.lineTo(-7,4); x.lineTo(0,-2); x.lineTo(7,4); x.closePath(); x.fill();
+    x.restore();
+    x.fillStyle = "#e8dcdc"; x.font = "bold 13px Rajdhani,Consolas"; x.textAlign = "center";
+    x.fillText("N", W-52, 80);
+    const barM = cam.dist > 4000 ? 2000 : cam.dist > 1800 ? 1000 : 500;
+    const barPx = barM * f / cam.dist;
+    x.strokeStyle = "#e8dcdc"; x.lineWidth = 3; x.beginPath();
+    x.moveTo(20, H-24); x.lineTo(20+barPx, H-24); x.stroke();
+    x.fillStyle = "#e8dcdc"; x.font = "12px Rajdhani,Consolas"; x.textAlign = "left";
+    x.fillText(barM + " m", 22, H-32);
+  }
+
+  // input: orbit / zoom / pan
+  function attach(canvas){
+    let drag = null;
+    canvas.addEventListener("mousedown", e => {
+      drag = {x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey};
+      e.preventDefault();
+    });
+    window.addEventListener("mouseup", () => drag = null);
+    window.addEventListener("mousemove", e => {
+      if(!drag) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      drag.x = e.clientX; drag.y = e.clientY;
+      if(drag.pan){
+        // camera right in world (E,Up,N) = up × forward = (cos yaw, 0, -sin yaw)
+        const k = cam.dist*0.0012;
+        const cy2 = Math.cos(cam.yaw), sy2 = Math.sin(cam.yaw);
+        cam.tx -= cy2*dx*k;
+        cam.tz += sy2*dx*k;
+        cam.ty += dy*k;
+        if(follow){ follow = false; syncFollowBtn(); }
+        userTakesCam();
+      } else {
+        cam.yaw += dx*0.005;
+        cam.pit = Math.max(-0.05, Math.min(1.45, cam.pit + dy*0.005));
+        userTakesCam();
+      }
+    });
+    canvas.addEventListener("contextmenu", e => e.preventDefault());
+    canvas.addEventListener("wheel", e => {
+      e.preventDefault();
+      userTakesCam();
+      cam.dist = Math.max(140, Math.min(9000, cam.dist*Math.exp(e.deltaY*0.0011)));
+    }, {passive: false});
+    // touch: 1 finger orbit, 2 finger pinch
+    let tprev = null;
+    canvas.addEventListener("touchstart", e => {
+      if(e.touches.length === 1) tprev = {x: e.touches[0].clientX, y: e.touches[0].clientY, d: null};
+      else if(e.touches.length === 2){
+        const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+        tprev = {x: null, y: null, d};
+      }
+      e.preventDefault();
+    }, {passive: false});
+    canvas.addEventListener("touchmove", e => {
+      if(!tprev) return;
+      if(e.touches.length === 1 && tprev.d === null){
+        cam.yaw += (e.touches[0].clientX - tprev.x)*0.006;
+        cam.pit = Math.max(-0.05, Math.min(1.45, cam.pit + (e.touches[0].clientY - tprev.y)*0.006));
+        tprev.x = e.touches[0].clientX; tprev.y = e.touches[0].clientY;
+      } else if(e.touches.length === 2){
+        const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+        if(tprev.d) cam.dist = Math.max(140, Math.min(9000, cam.dist*tprev.d/d));
+        tprev.d = d;
+      }
+      e.preventDefault();
+    }, {passive: false});
+    canvas.addEventListener("touchend", () => tprev = null);
+  }
+
+  return {draw, attach, resetView, terrAlt,
+          get follow(){ return follow; },
+          set follow(v){ follow = v; syncFollowBtn(); }, cam,
+          get chase(){ return _chase; },
+          set chase(v){ _chase = v; syncChaseBtn(); }};
+})();
+
+/* tab buttons + view buttons */
+$("tab3d").onclick = () => { $("tab3d").classList.add("active"); $("tab2d").classList.remove("active");
+  $("wrap3d").style.display = ""; $("wrap2d").style.display = "none"; };
+$("tab2d").onclick = () => { $("tab2d").classList.add("active"); $("tab3d").classList.remove("active");
+  $("wrap2d").style.display = ""; $("wrap3d").style.display = "none"; if(D) drawMap(((D.state.euler[2]*57.2958)%360+360)%360); };
+$("btnFollow").onclick = () => { T3.follow = !T3.follow; };
+$("btnChase").onclick = () => {
+  T3.chase = !T3.chase;
+  if(T3.chase){ T3.follow = true; }
+};
+$("btnReset").onclick = () => T3.resetView();
+$("btnResetSim").onclick = () => {
+  if(ws && ws.readyState === 1) ws.send(JSON.stringify({type:"sim_reset"}));
+  else addMsg("sys", "Not connected — start the simulator first.");
+};
+T3.attach($("view3d"));
+
+/* keep the view canvases' backing store matched to their CSS size so the
+   scene fills the centre panel at any window shape (GCS single-screen layout) */
+const fitView = () => {
+  [$("wrap3d"), $("wrap2d")].forEach(w => {
+    const c = w.querySelector("canvas");
+    if(!c) return;
+    const r = w.getBoundingClientRect();
+    const W2 = Math.round(r.width), H2 = Math.round(r.height);
+    if(W2 > 50 && H2 > 50 && (c.width !== W2 || c.height !== H2)){ c.width = W2; c.height = H2; }
+  });
+};
+const viewRO = new ResizeObserver(fitView);
+viewRO.observe($("wrap3d"));
+viewRO.observe($("wrap2d"));
+fitView();
+
+/* animation loop: smooth telemetry between 10 Hz packets, render 3D at rAF */
+const sm = {pos: null, eul: null};
+function lerpAng(a, b, k){
+  let d = (b - a) % (2*Math.PI);
+  if(d > Math.PI) d -= 2*Math.PI; if(d < -Math.PI) d += 2*Math.PI;
+  return a + d*k;
+}
+let lastT = performance.now();
+function loop(now){
+  const dt = Math.min((now - lastT)/1000, 0.1); lastT = now;
+  // watchdog: an open socket that has gone silent (zombie connection the
+  // server stopped sending to) must not sit behind a green "LIVE" dot
+  if(ws && ws.readyState === 1 && Date.now() - lastRxMs > 6000){
+    try{ ws.close(); }catch(e){}
+  }
+  if(D){
+    const p = D.state.pos_ned, e = D.state.euler;
+    const home = hello ? hello.home.alt_msl_m : 225;
+    const target = [p[1], home - p[2] - 225, p[0]];   // E, Up, N
+    if(!sm.pos){ sm.pos = target.slice(); sm.eul = e.slice(); }
+    const k = 1 - Math.exp(-dt*7);
+    for(let i = 0; i < 3; i++){
+      sm.pos[i] += (target[i] - sm.pos[i])*k;
+      sm.eul[i] = lerpAng(sm.eul[i], e[i], k);
+    }
+    if(T3.chase){
+      // camera locked behind & above the nose direction
+      const kc = 1 - Math.exp(-dt*3.2);
+      T3.cam.yaw = lerpAng(T3.cam.yaw, sm.eul[2], kc);
+      T3.cam.pit += (0.30 - T3.cam.pit)*kc;
+      T3.cam.dist += (120 - T3.cam.dist)*kc;
+    }
+    if($("wrap3d").style.display === ""){
+      T3.draw($("view3d"), sm.pos, sm.eul, D.mission_items, D.mission_captured,
+              D.mission_current_idx, hello ? hello.nfz_all : [], D.t_s);
+    }
+    // ADI is always visible: feed it the smoothed attitude (it previously only
+    // ever re-read its own output, so it stayed at 0/0) and repaint only when
+    // the value actually moved — not on every animation frame
+    const roll = sm.eul[0]*57.2958, pitch = sm.eul[1]*57.2958;
+    if(Math.abs(roll - drawADI.live[0]) > 0.05 || Math.abs(pitch - drawADI.live[1]) > 0.05)
+      drawADI(roll, pitch);
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ---------------- chat ---------------- */
+function addMsg(kind, text){
+  const m = document.createElement("div");
+  m.className = "msg " + kind; m.textContent = text;
+  $("msgs").appendChild(m); $("msgs").scrollTop = 1e9;
+}
+function ask(text){
+  if(!text.trim()) return;
+  if(!ws || ws.readyState !== 1){ addMsg("sys", "Not connected to the simulator."); return; }
+  addMsg("u", text);
+  ws.send(JSON.stringify({type:"ai_query", text}));
+}
+$("send").onclick = () => { ask($("q").value); $("q").value = ""; };
+$("q").addEventListener("keydown", e => { if(e.key === "Enter"){ ask($("q").value); $("q").value = ""; }});
+document.querySelectorAll(".chip2").forEach(ch => ch.onclick = () => ask(ch.dataset.q));
+
+connect();
+addMsg("sys", "Connecting to simulator — start the sim window if the dot stays red.");
+</script>
+</body>
+</html>
