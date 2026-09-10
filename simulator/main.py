@@ -1,3 +1,4 @@
+import argparse
 import os
 import sys
 import math
@@ -7,10 +8,10 @@ import pygame
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import simulator.config as _config
 from simulator.config import (
     SIM_PHYSICS_HZ, DT_PHYS, SIM_RENDER_HZ, TELEMETRY_HZ, HOME, G,
     GUIDANCE, WORLD, AERO, AIRFRAME, PISTON_ENGINE, INITIAL_CONDITIONS, CRASH,
-    ENGINE_TIME_SCALE,
 )
 from simulator.aircraft.rigid_body import RigidBody6DOF, rot_ned_b
 from simulator.aircraft.aerodynamics import compute_forces_and_moments
@@ -25,6 +26,7 @@ from simulator.flight_controller.autopilot import Autopilot
 from simulator.ai_advisor.monitor import HealthMonitor, PilotAssistant
 from simulator.ai_advisor.twin import EngineDigitalTwin
 from simulator.telemetry.server import TelemetryServer
+from simulator.mavlink_interface import MavlinkInterface
 from simulator.ui.input_handler import InputHandler
 from simulator.ui.renderer import Renderer
 
@@ -112,7 +114,22 @@ def _screen_click_to_ned(pos, ac_pos_ned, scale):
     return n, e
 
 
-def main():
+def main(scenario_path=None, mavlink_url=None, mavlink_commands=False):
+    # Apply the scenario BEFORE any object reads config: RigidBody6DOF copies
+    # INITIAL_CONDITIONS in its constructor, so a late apply would be ignored.
+    if scenario_path:
+        from simulator.scenario import apply_file, ScenarioError
+        try:
+            manifest = apply_file(scenario_path)
+        except ScenarioError as ex:
+            print(f"scenario error: {ex}")
+            raise SystemExit(2)
+        print(f"[scenario] {manifest['name']} — {scenario_path}")
+        if manifest["description"]:
+            print(f"           {manifest['description']}")
+        for line in manifest["changes"]:
+            print(f"           {line}")
+
     pygame.init()
 
     rigid = RigidBody6DOF()
@@ -181,6 +198,24 @@ def main():
                 engine.rpm = float(engine.rpm) or 1400.0
 
     server.set_fault_handler(_on_fault_inject)
+
+    # MAVLink bridge. Telemetry-out is always on when a link is configured.
+    # Command-in is opt-in because the rest of the system deliberately has no
+    # external control path (the dashboard can only ask questions, the AI can
+    # only advise); a ground station that can command the aircraft is a
+    # different trust model, so it is requested explicitly and announced.
+    mavlink = None
+    if mavlink_url:
+        mavlink = MavlinkInterface(url=mavlink_url, allow_commands=mavlink_commands)
+        if mavlink.available:
+            print(f"[mavlink] {mavlink_url}  commands={'ON' if mavlink_commands else 'OFF'}")
+            if mavlink_commands:
+                renderer.log_advisory(
+                    "WARN", "[MAVLink] ground-station command authority ENABLED", 0.0)
+        else:
+            print(f"[mavlink] unavailable: {mavlink.summary()['last_error']}")
+            mavlink = None
+
     renderer.log_advisory("INFO", "[ATC] UAV-01 cleared for takeoff — runway 36.", 0.0)
     print("=" * 64)
     print("  Telemetry dashboard (3D):  http://127.0.0.1:8766")
@@ -561,7 +596,7 @@ def main():
             if tel_accum >= 1.0 / TELEMETRY_HZ:
                 tel_accum = 0.0
                 es_read = sensor_data["engine"]
-                twin.step(1.0 / TELEMETRY_HZ * ENGINE_TIME_SCALE, 1.0 / TELEMETRY_HZ,
+                twin.step(1.0 / TELEMETRY_HZ * _config.ENGINE_TIME_SCALE, 1.0 / TELEMETRY_HZ,
                           es_read, manual["throttle"], last_agl < 1.0,
                           carb_heat=manual["carb_heat"])
                 sim_s["twin"] = twin.summary()
@@ -574,6 +609,9 @@ def main():
                     renderer.log_advisory(a["sev"], a["msg"], t_s)
                 server.publish({k: v for k, v in sim_s.items() if k != "world_terrain"})
 
+                if mavlink is not None:
+                    mavlink.send_state(sim_s, on_ground=last_agl < 1.0)
+
             renderer.draw(sim_s)
 
     pygame.quit()
@@ -581,4 +619,33 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    _parser = argparse.ArgumentParser(
+        description="UAV flight simulator. Run without arguments for the default flight.")
+    _parser.add_argument(
+        "--scenario", metavar="PATH",
+        help="YAML/JSON scenario file whose overrides are applied to the config")
+    _parser.add_argument(
+        "--list-scenarios", action="store_true",
+        help="list the bundled scenarios and exit")
+    _parser.add_argument(
+        "--mavlink", metavar="URL", default=None,
+        help="publish telemetry over MAVLink, e.g. udpout:127.0.0.1:14550 "
+             "or a serial port like /dev/ttyUSB0 (requires pymavlink)")
+    _parser.add_argument(
+        "--mavlink-commands", action="store_true",
+        help="ALSO accept commands (arm/disarm, mode changes, manual control) "
+             "from the ground station — requires --mavlink")
+    _args = _parser.parse_args()
+
+    if _args.mavlink_commands and not _args.mavlink:
+        _parser.error("--mavlink-commands requires --mavlink")
+
+    if _args.list_scenarios:
+        from simulator.scenario import list_bundled
+        print("bundled scenarios:")
+        for _name, _path in list_bundled():
+            print(f"  {_name:<28} {_path}")
+        raise SystemExit(0)
+
+    main(_args.scenario, mavlink_url=_args.mavlink,
+         mavlink_commands=_args.mavlink_commands)

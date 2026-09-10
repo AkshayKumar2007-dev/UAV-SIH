@@ -281,83 +281,93 @@ UI = {
 # --------------------------------------------------------------------- #
 # Scenery: deterministic forests and a small village (single source of
 # truth for physics collision, the chase view and the dashboard scene).
+#
+# Built by a function rather than at import time so a scenario that moves
+# the airport or edits the terrain can regenerate it: the keep-out zones
+# are derived from the CURRENT airport layout, so scenery placed before a
+# relocation would otherwise be punched out of the wrong area.
 # --------------------------------------------------------------------- #
 import math as _math
 import random as _random
 
-_scenery_rng = _random.Random(20240905)
-_ap = WORLD["airport"]
-_rw, _hg, _tw = _ap["runway"], _ap["hangar"], _ap["tower"]
 
+def build_scenery(seed=20240905):
+    """(Re)build WORLD["trees"] and WORLD["buildings"] from WORLD's layout."""
+    rng = _random.Random(seed)
+    hg = WORLD["airport"]["hangar"]
+    tw = WORLD["airport"]["tower"]
 
-def _in_keepout(n, e):
-    if abs(n) < 550 and abs(e) < 130:          # runway strip
-        return True
-    if abs(n - _hg["n"]) < 70 and abs(e - _hg["e"]) < 70:
-        return True
-    if _math.hypot(n - _tw["n"], e - _tw["e"]) < 60:
-        return True
-    return False
+    def in_keepout(n, e):
+        if abs(n) < 550 and abs(e) < 130:          # runway strip
+            return True
+        if abs(n - hg["n"]) < 70 and abs(e - hg["e"]) < 70:
+            return True
+        if _math.hypot(n - tw["n"], e - tw["e"]) < 60:
+            return True
+        return False
 
-
-_trees = []
-_woods = [(900.0, 1500.0, 60), (-1500.0, 2600.0, 55), (2600.0, -1800.0, 50),
-          (-3600.0, -500.0, 65), (4200.0, 900.0, 60), (-700.0, -3400.0, 55),
-          (5200.0, 3200.0, 60), (-6800.0, -2600.0, 70), (8600.0, -1600.0, 55),
-          (-2600.0, 7800.0, 60), (7600.0, 4400.0, 50), (-9200.0, 1200.0, 55),
-          (1200.0, 6800.0, 50), (9400.0, 6200.0, 45), (-11600.0, -1200.0, 45)]
-for _wn, _we, _count in _woods:
-    for _ in range(_count):
-        _ang = _scenery_rng.uniform(0.0, 2.0 * _math.pi)
-        _dist = _math.sqrt(_scenery_rng.uniform(0.0, 1.0)) * 900.0
-        _n, _e = _wn + _dist * _math.cos(_ang), _we + _dist * _math.sin(_ang)
-        if _in_keepout(_n, _e):
+    trees = []
+    woods = [(900.0, 1500.0, 60), (-1500.0, 2600.0, 55), (2600.0, -1800.0, 50),
+             (-3600.0, -500.0, 65), (4200.0, 900.0, 60), (-700.0, -3400.0, 55),
+             (5200.0, 3200.0, 60), (-6800.0, -2600.0, 70), (8600.0, -1600.0, 55),
+             (-2600.0, 7800.0, 60), (7600.0, 4400.0, 50), (-9200.0, 1200.0, 55),
+             (1200.0, 6800.0, 50), (9400.0, 6200.0, 45), (-11600.0, -1200.0, 45)]
+    for wn, we, count in woods:
+        for _ in range(count):
+            ang = rng.uniform(0.0, 2.0 * _math.pi)
+            dist = _math.sqrt(rng.uniform(0.0, 1.0)) * 900.0
+            n, e = wn + dist * _math.cos(ang), we + dist * _math.sin(ang)
+            if in_keepout(n, e):
+                continue
+            trees.append({"n": round(n, 1), "e": round(e, 1),
+                          "h_m": round(rng.uniform(9.0, 20.0), 1),
+                          "r_m": round(rng.uniform(2.5, 5.0), 1)})
+    for _ in range(240):                           # scattered singles across the region
+        ang = rng.uniform(0.0, 2.0 * _math.pi)
+        dist = _math.sqrt(rng.uniform(700.0 ** 2, 13000.0 ** 2))
+        n, e = dist * _math.cos(ang), dist * _math.sin(ang)
+        if in_keepout(n, e):
             continue
-        _trees.append({"n": round(_n, 1), "e": round(_e, 1),
-                       "h_m": round(_scenery_rng.uniform(9.0, 20.0), 1),
-                       "r_m": round(_scenery_rng.uniform(2.5, 5.0), 1)})
-for _ in range(240):                            # scattered singles across the region
-    _ang = _scenery_rng.uniform(0.0, 2.0 * _math.pi)
-    _dist = _math.sqrt(_scenery_rng.uniform(700.0 ** 2, 13000.0 ** 2))
-    _n, _e = _dist * _math.cos(_ang), _dist * _math.sin(_ang)
-    if _in_keepout(_n, _e):
-        continue
-    _trees.append({"n": round(_n, 1), "e": round(_e, 1),
-                   "h_m": round(_scenery_rng.uniform(9.0, 19.0), 1),
-                   "r_m": round(_scenery_rng.uniform(2.5, 5.0), 1)})
-for _ in range(60):                             # near-airport woods
-    _ang = _scenery_rng.uniform(0.0, 2.0 * _math.pi)
-    _dist = _scenery_rng.uniform(320.0, 820.0)
-    _n, _e = _dist * _math.cos(_ang), _dist * _math.sin(_ang)
-    if _in_keepout(_n, _e):
-        continue
-    _trees.append({"n": round(_n, 1), "e": round(_e, 1),
-                   "h_m": round(_scenery_rng.uniform(8.0, 16.0), 1),
-                   "r_m": round(_scenery_rng.uniform(2.5, 4.5), 1)})
-WORLD["trees"] = _trees
+        trees.append({"n": round(n, 1), "e": round(e, 1),
+                      "h_m": round(rng.uniform(9.0, 19.0), 1),
+                      "r_m": round(rng.uniform(2.5, 5.0), 1)})
+    for _ in range(60):                            # near-airport woods
+        ang = rng.uniform(0.0, 2.0 * _math.pi)
+        dist = rng.uniform(320.0, 820.0)
+        n, e = dist * _math.cos(ang), dist * _math.sin(ang)
+        if in_keepout(n, e):
+            continue
+        trees.append({"n": round(n, 1), "e": round(e, 1),
+                      "h_m": round(rng.uniform(8.0, 16.0), 1),
+                      "r_m": round(rng.uniform(2.5, 4.5), 1)})
+    WORLD["trees"] = trees
 
-_village = []
-for _i in range(10):
-    _n = 1700.0 + (_i % 5) * 62.0 - 124.0 + _scenery_rng.uniform(-9.0, 9.0)
-    _e = 1100.0 + (_i // 5) * 74.0 - 37.0 + _scenery_rng.uniform(-9.0, 9.0)
-    _village.append({"n": round(_n, 1), "e": round(_e, 1),
-                     "w_m": round(_scenery_rng.uniform(14.0, 26.0), 1),
-                     "d_m": round(_scenery_rng.uniform(12.0, 22.0), 1),
-                     "h_m": round(_scenery_rng.uniform(9.0, 26.0), 1)})
-_town = []
-for _i in range(28):                            # town blocks
-    _n = 6300.0 + (_i % 7) * 90.0 - 270.0 + _scenery_rng.uniform(-12.0, 12.0)
-    _e = -5400.0 + (_i // 7) * 105.0 - 160.0 + _scenery_rng.uniform(-12.0, 12.0)
-    _town.append({"n": round(_n, 1), "e": round(_e, 1),
-                  "w_m": round(_scenery_rng.uniform(16.0, 30.0), 1),
-                  "d_m": round(_scenery_rng.uniform(14.0, 26.0), 1),
-                  "h_m": round(_scenery_rng.uniform(12.0, 34.0), 1)})
-_industrial = []
-for _i in range(7):                             # industrial sheds by the town
-    _n = 5600.0 + _i * 120.0 - 360.0 + _scenery_rng.uniform(-15.0, 15.0)
-    _e = -4600.0 + _scenery_rng.uniform(-40.0, 40.0)
-    _industrial.append({"n": round(_n, 1), "e": round(_e, 1),
-                        "w_m": round(_scenery_rng.uniform(40.0, 70.0), 1),
-                        "d_m": round(_scenery_rng.uniform(25.0, 40.0), 1),
-                        "h_m": round(_scenery_rng.uniform(11.0, 16.0), 1)})
-WORLD["buildings"] = _village + _town + _industrial
+    village = []
+    for i in range(10):
+        n = 1700.0 + (i % 5) * 62.0 - 124.0 + rng.uniform(-9.0, 9.0)
+        e = 1100.0 + (i // 5) * 74.0 - 37.0 + rng.uniform(-9.0, 9.0)
+        village.append({"n": round(n, 1), "e": round(e, 1),
+                        "w_m": round(rng.uniform(14.0, 26.0), 1),
+                        "d_m": round(rng.uniform(12.0, 22.0), 1),
+                        "h_m": round(rng.uniform(9.0, 26.0), 1)})
+    town = []
+    for i in range(28):                            # town blocks
+        n = 6300.0 + (i % 7) * 90.0 - 270.0 + rng.uniform(-12.0, 12.0)
+        e = -5400.0 + (i // 7) * 105.0 - 160.0 + rng.uniform(-12.0, 12.0)
+        town.append({"n": round(n, 1), "e": round(e, 1),
+                     "w_m": round(rng.uniform(16.0, 30.0), 1),
+                     "d_m": round(rng.uniform(14.0, 26.0), 1),
+                     "h_m": round(rng.uniform(12.0, 34.0), 1)})
+    industrial = []
+    for i in range(7):                             # industrial sheds by the town
+        n = 5600.0 + i * 120.0 - 360.0 + rng.uniform(-15.0, 15.0)
+        e = -4600.0 + rng.uniform(-40.0, 40.0)
+        industrial.append({"n": round(n, 1), "e": round(e, 1),
+                           "w_m": round(rng.uniform(40.0, 70.0), 1),
+                           "d_m": round(rng.uniform(25.0, 40.0), 1),
+                           "h_m": round(rng.uniform(11.0, 16.0), 1)})
+    WORLD["buildings"] = village + town + industrial
+    return {"trees": len(trees), "buildings": len(WORLD["buildings"])}
+
+
+build_scenery()

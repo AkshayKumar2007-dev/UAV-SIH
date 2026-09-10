@@ -82,6 +82,21 @@ cd UAV
 python -m simulator.main
 ```
 
+Optional MAVLink bridge (requires `pymavlink`):
+
+```bash
+python -m simulator.main --mavlink udpout:127.0.0.1:14550
+```
+
+This streams HEARTBEAT / ATTITUDE / GLOBAL_POSITION_INT / VFR_HUD at 10 Hz so a ground
+station (e.g. Mission Planner or QGroundControl) can watch the simulated aircraft. UDP
+needs no extra setup; a serial port URL like `/dev/ttyUSB0` or `COM7` works too.
+
+By default the link is **telemetry-only**: the ground station can watch but cannot command
+the aircraft, matching the simulator's advisory-only design. Pass `--mavlink-commands` to
+also accept arm/disarm, mode changes and manual control from the ground station — this is
+announced in the on-screen advisories when enabled.
+
 Then open the dashboard at http://127.0.0.1:8766 (WebSocket telemetry on
 `ws://127.0.0.1:8765`). The Pygame window accepts manual control input and mirrors the
 simulated state; the dashboard renders it in 3D.
@@ -109,11 +124,14 @@ python -m simulator._trimtest
 | `_faulttest` | Injected sensor and engine faults |
 | `_crashtest` | Ground impact detection and automatic reset |
 | `_trimtest` | Manual-control level-cruise trim |
+| `mavlink_interface` self-test | MAVLink frame encoding without a listener |
 
 `_debug_main.py` is a development entry point that runs the loop headless for inspection.
+
+`mavlink_interface.py` is the MAVLink bridge (telemetry-out by default, opt-in command-in).
+Its `__main__` block is a self-test that encodes a few frames without needing a listener.
 
 ## Safety note
 
 The AI advisor is read-only with respect to flight controls. Corrective authority stays with
 the autopilot and the human operator.
-</｜｜DSML｜｜ parameter>

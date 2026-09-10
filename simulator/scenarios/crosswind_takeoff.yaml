@@ -1,0 +1,20 @@
+# A 12 m/s direct crosswind (the runway lies north-south) with light gusts and
+# moderate turbulence -- enough to make the takeoff roll and the initial climb
+# a real control problem without exceeding the airframe limits.
+name: Crosswind takeoff
+description: 12 m/s direct crosswind, light gusts, moderate turbulence.
+
+wind:
+  speed_north_mps: 0.0
+  speed_east_mps: 12.0
+  gust_amplitude_mps: 3.0
+  turbulence_intensity: 0.10
+  wind_shear_exp: 0.14
+
+guidance:
+  rotate_ias_mps: 34.0
+  max_bank_deg_aps: 20.0
+
+faults:
+  ice_chance: 0.0
+  oil_leak_chance: 0.0

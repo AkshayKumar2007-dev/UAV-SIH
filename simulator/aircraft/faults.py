@@ -17,7 +17,7 @@ controls, so the AI-advisory architecture is unaffected.
 import math
 import random
 
-from simulator.config import FAULTS, ENGINE_TIME_SCALE
+from simulator.config import FAULTS
 
 
 class FaultSystem:

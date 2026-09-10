@@ -1,0 +1,18 @@
+# Baseline control run: still air, no injected faults. Any deviation from a
+# clean auto-takeoff here is a code change, not weather.
+name: Calm takeoff
+description: Still air, no gusts or turbulence, no injected engine faults.
+
+wind:
+  speed_north_mps: 0.0
+  speed_east_mps: 0.0
+  gust_amplitude_mps: 0.0
+  turbulence_intensity: 0.0
+
+faults:
+  ice_chance: 0.0
+  oil_leak_chance: 0.0
+
+guidance:
+  rotate_ias_mps: 30.0
+  takeoff_pitch_deg: 11.0

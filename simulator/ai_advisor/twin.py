@@ -32,10 +32,9 @@ from collections import deque
 
 import numpy as np
 
-from simulator.config import PISTON_ENGINE, ENGINE_TIME_SCALE
+import simulator.config as _config
+from simulator.config import PISTON_ENGINE
 from simulator.ai_advisor.ml_runtime import MLEngineMonitor
-
-E_S = ENGINE_TIME_SCALE   # engine-seconds per real second
 
 
 class EngineDigitalTwin:
@@ -103,7 +102,7 @@ class EngineDigitalTwin:
 
         # ---------- 1. twin mirror propagation (display state) -------------
         # the PISTON_ENGINE thermal taus are already in ENGINE-seconds
-        tau_r = PISTON_ENGINE["rpm_tau_s"] * E_S
+        tau_r = PISTON_ENGINE["rpm_tau_s"] * _config.ENGINE_TIME_SCALE
         self.rpm_t += (rpm_cmd - self.rpm_t) * (1.0 - math.exp(-dt_e / tau_r))
         load = self.power_est * (0.4 + 0.6 * max(0.0, min(1.0, throttle))) * \
             max(0.0, min(1.0, (self.rpm_t - idle) / max(mx - idle, 1.0)))

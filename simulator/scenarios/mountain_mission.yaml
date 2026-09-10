@@ -1,0 +1,18 @@
+# Waypoints routed over the eastern peaks in strong, gusty wind. Altitudes are
+# MSL and clear every peak on the route; the terrain check in scenario_test
+# asserts the margin rather than trusting the numbers.
+name: Mountain mission
+description: Peaks route in strong gusty wind, waypoints well above terrain.
+
+wind:
+  speed_north_mps: 8.0
+  speed_east_mps: 4.0
+  gust_amplitude_mps: 5.0
+  turbulence_intensity: 0.16
+
+world:
+  default_waypoints:
+    - {n_m: 3200.0, e_m: 2600.0, alt_msl_m: 900.0}
+    - {n_m: 5200.0, e_m: 6800.0, alt_msl_m: 1100.0}
+    - {n_m: 6800.0, e_m: -7200.0, alt_msl_m: 1200.0}
+    - {n_m: 0.0, e_m: 0.0, alt_msl_m: 400.0}

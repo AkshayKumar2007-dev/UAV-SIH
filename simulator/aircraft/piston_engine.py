@@ -1,5 +1,6 @@
 import numpy as np
-from simulator.config import PISTON_ENGINE, AERO, ENGINE_TIME_SCALE
+import simulator.config as _config
+from simulator.config import PISTON_ENGINE, AERO
 from simulator.aircraft.faults import FaultSystem
 
 
@@ -66,7 +67,7 @@ class PistonEngine:
         # engine AGING clock: fuel burn, thermal states, wear and faults run on
         # compressed time (MALE mission arc in a short demo); RPM response and
         # the starter stay real-time.
-        dt_e = dt * ENGINE_TIME_SCALE
+        dt_e = dt * _config.ENGINE_TIME_SCALE
         self.run_time_s += dt_e
         self._t_real += dt
         Dp = AERO["prop_diam_m"]

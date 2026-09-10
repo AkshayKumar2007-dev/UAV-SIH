@@ -1,0 +1,22 @@
+# Engine degradation for advisor testing. Faults are forced on and scheduled
+# early so a demo flight shows carb icing, an oil leak and abuse damage without
+# waiting for the randomized windows. The rates are the FAULTS config values,
+# so this scenario changes WHEN faults appear, not how severe they are.
+name: Degraded engine
+description: Carb ice and oil leak forced on early; stress builds from abuse.
+
+faults:
+  ice_chance: 1.0
+  ice_start_s_range: [10.0, 20.0]
+  oil_leak_chance: 1.0
+  oil_leak_delay_s_range: [30.0, 45.0]
+  # accelerate the fault arcs so a short demo covers the whole progression
+  ice_rate_per_s: 0.0004
+  oil_leak_rate_per_s: 0.0004
+  stress_per_s_high_rpm: 0.02
+
+wind:
+  speed_north_mps: 3.0
+  speed_east_mps: -1.0
+  gust_amplitude_mps: 1.5
+  turbulence_intensity: 0.06
