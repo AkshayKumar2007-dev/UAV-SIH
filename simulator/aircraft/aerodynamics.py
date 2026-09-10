@@ -34,7 +34,8 @@ def _drag_coeff(cl, delta_flap_rad, gear_down, brakes_on):
     return float(cd)
 
 
-def compute_forces_and_moments(state, controls, rho_kgm3, wind_ned_mps, mass_kg, thrust_N=0.0):
+def compute_forces_and_moments(state, controls, rho_kgm3, wind_ned_mps, mass_kg, thrust_N=0.0,
+                               agl_m=None):
     pos, vel_b, euler, rates = state["pos_ned"], state["vel_body"], state["euler"], state["rates"]
     p, q, r = rates
     phi, theta, psi = euler
@@ -106,7 +107,12 @@ def compute_forces_and_moments(state, controls, rho_kgm3, wind_ned_mps, mass_kg,
 
     M_body = M_aero + M_thrust
 
-    h_agl = max(0.0, -pos[2])
+    # Ground contact is terrain-relative: the caller passes the aircraft's
+    # height above the LOCAL terrain (agl_m). Falling back to -pos[2] would
+    # reference the z=0 MSL plane, which is ~22 m below the airport plateau —
+    # the whole ground model (rolling resistance, brakes, gear load) would
+    # then be dead during every takeoff and landing roll.
+    h_agl = max(0.0, -pos[2]) if agl_m is None else max(0.0, float(agl_m))
     on_ground = h_agl < 0.3
     if on_ground:
         N = mass_kg * 9.80665 * np.cos(theta)
@@ -115,8 +121,11 @@ def compute_forces_and_moments(state, controls, rho_kgm3, wind_ned_mps, mass_kg,
         if controls.get("brakes", False) and abs(vel_b[0]) < 60:
             brake_force = -np.sign(vel_b[0]) * AIRFRAME["brake_friction_coeff"] * N
         F_body[0] += rr_force + brake_force
-        if pos[2] > -0.05:
-            F_body[2] += N * 0.9
+        if h_agl < 0.05:
+            # gear load: the ground supports the airframe (body +z is down,
+            # so the support force is negative); 0.9 leaves a slight residual
+            # weight so the wheels stay compressed against the terrain clamp
+            F_body[2] -= N * 0.9
 
     return {
         "F_body": F_body,

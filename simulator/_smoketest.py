@@ -65,7 +65,10 @@ for i in range(N):
         ap.set_mode("ALT_HOLD")
     if i == 600:
         ap.set_mode("WAYPOINT")
-    aero = compute_forces_and_moments(rigid.state, ctrl, rho, w_ned, rigid.mass_kg, thrust_N=thr)
+    agl0 = max(0.0, (HOME["alt_msl_m"] - rigid.state["pos_ned"][2])
+               - terr.altitude_msl_at(rigid.state["pos_ned"][0], rigid.state["pos_ned"][1]))
+    aero = compute_forces_and_moments(rigid.state, ctrl, rho, w_ned, rigid.mass_kg,
+                                      thrust_N=thr, agl_m=agl0)
     Fa = aero["F_body"]
     Ma = aero["M_body"]
     rigid.step(Fa, Ma, DT_PHYS)

@@ -39,7 +39,7 @@ class Autopilot:
         self.target_alt_msl_m = 200.0
         self.target_ias_mps = GUIDANCE["cruise_ias_mps"]
         self.rth_armed = False
-        self._next_wp_idx_cached = 0
+        self._next_wp_idx_cached = -1   # -1 so the first WAYPOINT step always initialises _last_from_wp
         self._last_from_wp = None
         self._debug = {}
         self._to_active = False     # auto-takeoff in progress
@@ -109,6 +109,8 @@ class Autopilot:
                 self.target_alt_msl_m = float(alt_msl)
                 self.target_ias_mps = GUIDANCE["cruise_ias_mps"]
                 self._stab_locked = True
+            # re-evaluate delegation every step: waypoints added AFTER STAB
+            # was engaged are picked up immediately without needing a re-engage
             mode = "WAYPOINT" if mission.count() > 0 else "HDG_HOLD"
 
         if mode == "MANUAL":
@@ -191,6 +193,7 @@ class Autopilot:
             else:
                 if mission.count() == 0:
                     mode = "ALT_HOLD"
+                    target_alt = self.target_alt_msl_m   # referenced by the debug dict below
                     roll_cmd_deg = 0.0
                     pitch_cmd_deg, vs_cmd = self.alt_loop(alt_msl, vsi, ias_mps, dt)
                     throttle_cmd = self.throttle_loop(self.target_ias_mps, ias_mps, vs_cmd, self._vsi_thr, dt)
@@ -219,6 +222,12 @@ class Autopilot:
                     mission.advance()
                     self._last_from_wp = current
                     self._next_wp_idx_cached = mission.current_index
+                    # if the route just looped back to index 0, force re-init
+                    # so the first leg of the loop departs from the last WP,
+                    # not from wherever _last_from_wp happened to be cached
+                    if mission.current_index == 0:
+                        self._last_from_wp = None
+                        self._next_wp_idx_cached = -1
 
                 target_alt = current.get("alt_msl_m", alt_msl)
                 target_spd = GUIDANCE["cruise_ias_mps"]

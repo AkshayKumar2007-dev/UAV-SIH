@@ -28,7 +28,8 @@ print("1. impact evaluator OK")
 import subprocess as _sp
 _sp.run(["powershell", "-NoProfile", "-Command",
          "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
-         "Where-Object { $_.CommandLine -like '*simulator/main.py*' } | "
+         "Where-Object { $_.CommandLine -like '*simulator/main.py*' -or "
+         "$_.CommandLine -like '*from simulator.main import*' } | "
          "ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"], capture_output=True)
 time.sleep(1.0)
 
@@ -132,8 +133,12 @@ try:
             assert ack, "no reset ack"
             # a live packet here, or the guaranteed re-crash found in the next
             # phase, both prove the reset restarted the simulation
-            print(f"   reset OK: t_s={flying_again['t_s']:.2f}s, mode={flying_again['mode']}, "
-                  f"crashed={flying_again['crash']['crashed']}")
+            if flying_again is not None:
+                print(f"   reset OK: t_s={flying_again['t_s']:.2f}s, mode={flying_again['mode']}, "
+                      f"crashed={flying_again['crash']['crashed']}")
+            else:
+                print("   reset OK: no live packet before the re-crash "
+                      "(guaranteed-impact spawn) — physics restart proven in phase 4")
 
             # ---- 4. physics running again: with this spawn it re-crashes -> t_s advanced ----
             re_crashed = None

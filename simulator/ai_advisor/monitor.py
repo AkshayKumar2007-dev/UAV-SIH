@@ -754,7 +754,8 @@ class PilotAssistant:
             f = (s.get("engine_summary") or {}).get("faults") or {}
             q = float(f.get("oil_qty_pct", 100.0))
             if not f.get("leak_active") and q > 95:
-                return "Oil quantity and pressure nominal — no leak detected."
+                psi = s.get("engine_sensors", {}).get("oil_psi", 0.0)
+                return (f"Oil quantity and pressure nominal ({psi:.1f} psi) — no leak detected.")
             rate = 100.0 / 130.0 * (1.0 - 0.4 * s.get("manual_controls", {}).get("throttle", 0.55))
             eta = q / max(rate, 0.01)
             return (f"Oil leak in progress: {q:.0f}% remaining (~{eta/60:.0f} min at this power). "
@@ -779,7 +780,7 @@ class PilotAssistant:
                     f"(limit {PISTON_ENGINE['egt_max_c']:.0f})."
                     + (f" CHT trend {tr:+.0f} C/min." if tr is not None else ""))
 
-        if has("oil"):
+        if has("oil pressure", "pressure"):
             return (f"Oil pressure {s.get('engine_sensors',{}).get('oil_psi',0):.1f} psi "
                     f"(nominal {PISTON_ENGINE['oil_pressure_nominal_psi']:.0f}, "
                     f"min {PISTON_ENGINE['oil_pressure_min_psi']:.0f}).")

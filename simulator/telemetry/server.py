@@ -96,6 +96,7 @@ class TelemetryServer:
         self._clients = set()
         self._query_handler = None   # fn(text) -> str, executed on ws thread
         self._reset_handler = None   # fn() -> None, human-initiated sim reset
+        self._fault_handler = None   # fn(fault, value) -> None, fault injection
         self._loop = None
         self._started = False
         self.http = _DashboardHTTP(self.http_port)
@@ -120,6 +121,11 @@ class TelemetryServer:
         """Reset is a SIMULATOR function (like restarting the program), invoked
         only by a human pressing R or clicking RESET SIM — never by the AI."""
         self._reset_handler = fn
+
+    def set_fault_handler(self, fn):
+        """Fault injection: fn(fault_name, value) called from the WS thread.
+        Allowed fault names: carb_ice, oil_leak, stress, seizure, clear_all."""
+        self._fault_handler = fn
 
     @property
     def url(self):
@@ -224,8 +230,18 @@ class TelemetryServer:
                         ws, json.dumps({"type": "sim_reset_ack"})))
                 except Exception as ex:
                     print("[telemetry] reset error:", ex)
-        # NOTE: any other message type is ignored by design — the dashboard
-        # has no way to command the aircraft.
+        elif mtype == "fault_inject":
+            # fault injection panel — demonstration / test tool only
+            fault = str(msg.get("fault", ""))[:32]
+            value = msg.get("value", 1.0)
+            if self._fault_handler is not None:
+                try:
+                    self._fault_handler(fault, value)
+                    asyncio.ensure_future(self._safe_send(
+                        ws, json.dumps({"type": "fault_ack", "fault": fault, "value": value})))
+                except Exception as ex:
+                    print("[telemetry] fault inject error:", ex)
+        # NOTE: any other message type is ignored by design.
 
     async def _safe_send(self, ws, pkt):
         try:

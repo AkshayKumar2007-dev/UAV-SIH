@@ -58,12 +58,17 @@ for i in range(300):
         "gear_down": False,
         "brakes": False,
     }
-    aero = compute_forces_and_moments(rigid.state, manual_controls_only, rho, w_ned, rigid.mass_kg, thrust_N=thr)
+    agl0 = max(0.0, (HOME["alt_msl_m"] - rigid.state["pos_ned"][2])
+               - terr.altitude_msl_at(rigid.state["pos_ned"][0], rigid.state["pos_ned"][1]))
+    aero = compute_forces_and_moments(rigid.state, manual_controls_only, rho, w_ned, rigid.mass_kg,
+                                      thrust_N=thr, agl_m=agl0)
     rigid.step(aero["F_body"], aero["M_body"], DT_PHYS)
     hT = terr.altitude_msl_at(rigid.state["pos_ned"][0], rigid.state["pos_ned"][1])
     acA = HOME["alt_msl_m"] - rigid.state["pos_ned"][2]
     agl = acA - hT
-    if agl < 0.0: rigid.state["pos_ned"][2] += agl
+    if agl < 0.0:
+        rigid.state["pos_ned"][2] += agl
+        rigid.state["vel_body"][2] = min(rigid.state["vel_body"][2], 0.0)
     imu_s.step(DT_PHYS, aero["F_body"]/rigid.mass_kg, rigid.state["rates"])
     gps.step(DT_PHYS, rigid.state["pos_ned"], rigid.state["vel_body"], rigid.state["euler"])
     rigid.update_mass(AIRFRAME["mass_dry_kg"] + eng.fuel_kg_remaining)
@@ -80,4 +85,4 @@ stable = (
     and not aero["stall"]
 )
 print("  RESULT:", "PASS (stable trim)" if stable else f"ADJUST NEEDED (diverged beyond acceptable envelope)")
-sys.exit(0 if stable else 0)
+sys.exit(0 if stable else 1)

@@ -149,6 +149,38 @@ def main():
 
     server.set_query_handler(_on_ai_query)
     server.start()
+
+    # Fault injection handler — directly mutates the engine FaultSystem so
+    # the ML/twin sees the degradation through sensors (no ground-truth bypass)
+    def _on_fault_inject(fault, value):
+        f = engine.faults
+        if fault == "carb_ice":
+            f.ice = max(0.0, min(1.0, float(value)))
+            f._ice_this_flight = True      # keep ticking once seeded
+        elif fault == "oil_leak":
+            f.leak_active = True
+            f.oil_qty_pct = max(0.0, min(100.0, float(value)))
+        elif fault == "stress":
+            f.stress = max(0.0, min(1.0, float(value)))
+        elif fault == "seizure":
+            f.stress = 1.0
+            f.seized = True
+            engine.running = False
+            engine.rpm = 0.0
+        elif fault == "clear_all":
+            f.stress = 0.0
+            f.seized = False
+            f.ice = 0.0
+            f.oil_qty_pct = 100.0
+            f.leak_active = False
+            f.power_factor = 1.0
+            f._ice_this_flight = False
+            f._leak_this_flight = False
+            if not engine.running:
+                engine.running = True
+                engine.rpm = float(engine.rpm) or 1400.0
+
+    server.set_fault_handler(_on_fault_inject)
     renderer.log_advisory("INFO", "[ATC] UAV-01 cleared for takeoff — runway 36.", 0.0)
     print("=" * 64)
     print("  Telemetry dashboard (3D):  http://127.0.0.1:8766")
@@ -163,6 +195,15 @@ def main():
     t_s = 0.0
     frames_rendered = 0
     fps_t = time.time()
+    # initialise sensor_data so the telemetry block never sees a NameError
+    # on the very first frame before the physics loop has run
+    sensor_data = {
+        "pitot": pitot.reading(),
+        "gps": gps.reading(),
+        "imu": imu.reading(),
+        "engine": eng_sensors.reading(engine.summary()),
+        "on_ground": True,
+    }
     last_fps = 60.0
 
     last_agl = terrain.agl_at(rigid.state["pos_ned"])
@@ -228,6 +269,9 @@ def main():
         last_time = now
         accumulator += frame_dt
         render_accum += frame_dt
+        # telemetry runs on wall-clock time: coupling it to the render count
+        # made the publish rate sag whenever rendering ran below SIM_RENDER_HZ
+        tel_accum += frame_dt
 
         inp.process_events(frame_dt)
         if inp.quit:
@@ -309,8 +353,13 @@ def main():
             F_applied = np.zeros(3)
             M_applied = np.zeros(3)
             total_mass = rigid.mass_kg
+            # terrain-relative AGL before the step, so the aero ground model
+            # (wheel friction, brakes, gear load) is active on the runway
+            agl_pre = (HOME["alt_msl_m"] - rigid.state["pos_ned"][2]) - terrain.altitude_msl_at(
+                rigid.state["pos_ned"][0], rigid.state["pos_ned"][1])
             aero_res = compute_forces_and_moments(
                 rigid.state, controls, rho, wind_ned, total_mass, thrust_N=thrust_N,
+                agl_m=agl_pre,
             )
             F_applied += aero_res["F_body"]
             M_applied += aero_res["M_body"]
@@ -489,10 +538,26 @@ def main():
 
             if agl > 0.6:
                 was_airborne = True
-            sim_s["wind_ned"] = wind.wind_at(rigid.altitude_msl_m, rigid.state["pos_ned"])
+            _wind_ned = wind.wind_at(rigid.altitude_msl_m, rigid.state["pos_ned"])
+            sim_s["wind_ned"] = _wind_ned
+            # Publish a named atmosphere dict so the telemetry dashboard can
+            # display temperature, pressure and wind without extra computation.
+            _atm = isa_atmosphere(rigid.altitude_msl_m)
+            _wind_spd = float(np.linalg.norm(_wind_ned[:2]))  # horizontal component
+            _wind_dir = float((math.degrees(math.atan2(-float(_wind_ned[1]),
+                                                       -float(_wind_ned[0]))) + 360.0) % 360.0)
+            sim_s["atmosphere"] = {
+                "temp_C":       float(_atm["T_K"] - 273.15),
+                "pressure_Pa":  float(_atm["P_Pa"]),
+                "rho_kgm3":     float(_atm["rho_kgm3"]),
+                "wind_mps":     _wind_spd,
+                "wind_dir_deg": _wind_dir,
+                "wind_n_mps":   float(_wind_ned[0]),
+                "wind_e_mps":   float(_wind_ned[1]),
+                "wind_d_mps":   float(_wind_ned[2]),
+            }
 
             # AI advisor + telemetry page @ 10 Hz (suggestions only — no control path)
-            tel_accum += 1.0 / SIM_RENDER_HZ
             if tel_accum >= 1.0 / TELEMETRY_HZ:
                 tel_accum = 0.0
                 es_read = sensor_data["engine"]

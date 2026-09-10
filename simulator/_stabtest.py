@@ -73,7 +73,10 @@ def run(name, engage_mode, engage_t, total_t, clear_mission=False, expect_captur
             ap.set_mode(engage_mode)
         ctrl, dbg = ap.step(DT_PHYS, rigid.state, last_aero, sensors, manual, mission)
         thr = eng.step(ctrl["throttle"], DT_PHYS, rho, Vae)
-        aero = compute_forces_and_moments(rigid.state, ctrl, rho, w_ned, rigid.mass_kg, thrust_N=thr)
+        agl0 = max(0.0, (HOME["alt_msl_m"] - rigid.state["pos_ned"][2])
+                   - terr.altitude_msl_at(rigid.state["pos_ned"][0], rigid.state["pos_ned"][1]))
+        aero = compute_forces_and_moments(rigid.state, ctrl, rho, w_ned, rigid.mass_kg,
+                                          thrust_N=thr, agl_m=agl0)
         Ma = aero["M_body"] + prop_gyro_pf(thr, eng.rpm, aero["alpha_rad"], rigid.state["rates"], 0.66)
         rigid.step(aero["F_body"], Ma, DT_PHYS)
         hT = terr.altitude_msl_at(rigid.state["pos_ned"][0], rigid.state["pos_ned"][1])

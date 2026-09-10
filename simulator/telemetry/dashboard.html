@@ -29,7 +29,7 @@
   #dot.on{background:var(--green); box-shadow:0 0 8px var(--green);}
   .grow{flex:1;}
   .chip{padding:4px 12px; border-radius:8px; font-weight:700; font-size:13px;}
-  .grid{flex:1; min-height:0; display:grid; grid-template-columns:280px minmax(0,1fr) 320px 300px; gap:8px;}
+  .grid{flex:0 0 auto; min-height:0; height:calc(100vh - 120px); display:grid; grid-template-columns:280px minmax(0,1fr) 320px 300px; gap:8px;}
   .col{display:flex; flex-direction:column; gap:8px; min-width:0; min-height:0; overflow-y:auto;}
   .col.center{overflow:hidden;}
   .panel{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; flex:0 0 auto;}
@@ -108,6 +108,216 @@
     padding:18px 34px; text-align:center; display:none; box-shadow:0 0 60px rgba(255,40,40,.45);}
   #crashBanner .big{font-family:Orbitron,sans-serif; font-size:26px; font-weight:800; letter-spacing:2px; color:#fff;}
   #crashBanner .sub{color:#ffd6d6; margin-top:7px; font-size:14px;}
+
+  /* ============================================================
+     PAGE NAVIGATION
+     ============================================================ */
+  .page-nav{display:flex; gap:0; margin-left:auto; background:var(--panel2); border:1px solid var(--line); border-radius:9px; overflow:hidden;}
+  .pnav-btn{font-family:Orbitron,"Segoe UI",sans-serif; font-size:10px; font-weight:700; letter-spacing:1.4px;
+            padding:6px 18px; border:none; background:transparent; color:var(--dim); cursor:pointer;
+            transition:background .18s, color .18s;}
+  .pnav-btn.active{background:var(--accent); color:#fff;}
+  .pnav-btn:hover:not(.active){background:#1e1014; color:var(--txt);}
+
+  .page{display:none; flex:1; min-height:0; flex-direction:column; overflow-y:auto;}
+  .page.active{display:flex;}
+
+  /* ============================================================
+     PAGE 2 — ELABORATE 3D TELEMETRY
+     ============================================================ */
+  #page2{overflow-y:auto; gap:10px; padding-bottom:10px;}
+  #page3{overflow-y:auto; gap:0; padding:8px 0 16px;}
+  .p2-row{display:grid; gap:10px;}
+  .p2-row.r1{grid-template-columns:1fr 1fr 1fr 1fr;}
+  .p2-row.r2{grid-template-columns:2fr 2fr 1.4fr;}
+  .p2-row.r3{grid-template-columns:1fr 1fr;}
+  .p2-row.r4{grid-template-columns:1.2fr 1fr 1fr 1.2fr;}
+
+  .p2panel{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 14px; position:relative; overflow:hidden;}
+  .p2panel h2{font-family:Orbitron,"Segoe UI",sans-serif; font-size:10px; font-weight:600; text-transform:uppercase;
+              letter-spacing:1.6px; color:var(--accent); margin-bottom:10px;}
+  .p2panel::before{content:""; position:absolute; top:0; left:0; right:0; height:2px;
+                   background:linear-gradient(90deg,transparent,var(--accent),transparent); opacity:.5;}
+
+  /* 3D Gauge */
+  .gauge-wrap{display:flex; flex-direction:column; align-items:center; gap:4px;}
+  .gauge-3d{position:relative; width:120px; height:66px; overflow:visible;}
+  .gauge-val{font-family:Orbitron,monospace; font-size:22px; font-weight:800; color:#fff; text-align:center;
+             text-shadow:0 0 12px var(--accent);}
+  .gauge-unit{font-size:10px; color:var(--dim); text-align:center; letter-spacing:1px;}
+  .gauge-label{font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; text-align:center; margin-top:2px;}
+
+  /* 3D bar */
+  .bar3d-wrap{display:flex; flex-direction:column; gap:8px;}
+  .bar3d-row{display:grid; grid-template-columns:90px 1fr 64px; gap:8px; align-items:center;}
+  .bar3d-row .lbl{font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.7px;}
+  .bar3d-row .val{font-size:13px; font-weight:700; font-family:Consolas,monospace; text-align:right;}
+  .bar3d-track{height:14px; background:#0d0509; border-radius:4px; overflow:hidden;
+               border:1px solid #1e1014; box-shadow:inset 0 2px 4px rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.04);}
+  .bar3d-fill{height:100%; width:0%; border-radius:4px; transition:width .15s;
+              background:linear-gradient(180deg,rgba(255,255,255,.18) 0%,transparent 60%),var(--gc,var(--green));
+              box-shadow:0 0 8px var(--gc,var(--green));}
+
+  /* Sparkline */
+  .spark-wrap{position:relative;}
+  .spark-wrap canvas{display:block; width:100%; border-radius:6px; background:#0a0607;}
+  .spark-legend{display:flex; gap:12px; margin-top:5px; flex-wrap:wrap;}
+  .spark-leg-item{display:flex; align-items:center; gap:5px; font-size:10.5px; color:var(--dim);}
+  .spark-leg-dot{width:9px; height:9px; border-radius:50%;}
+
+  /* Attitude 3D canvas panel */
+  #p2adi{display:block; border-radius:8px;}
+
+  /* Environment cards */
+  .env-cards{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .env-card{background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:10px 12px;
+            display:flex; flex-direction:column; gap:4px;}
+  .env-card .ec-lbl{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.8px;}
+  .env-card .ec-val{font-size:20px; font-weight:700; font-family:Orbitron,monospace;}
+  .env-card .ec-sub{font-size:10.5px; color:var(--dim);}
+
+  /* Wind rose */
+  #windRose{display:block; border-radius:50%;}
+
+  /* Health radar */
+  #healthRadar{display:block; margin:0 auto;}
+
+  /* KPI strip */
+  .kpi-strip{display:grid; grid-template-columns:repeat(4,1fr); gap:8px;}
+  .kpi{background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:10px 12px;
+       display:flex; flex-direction:column; gap:3px; position:relative; overflow:hidden;}
+  .kpi::after{content:""; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--kc,var(--green));}
+  .kpi .kl{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.8px;}
+  .kpi .kv{font-family:Orbitron,monospace; font-size:20px; font-weight:700; color:#fff;}
+  .kpi .ks{font-size:10.5px; color:var(--dim);}
+
+  /* Timeline / history chart */
+  #histChart{display:block; width:100%; border-radius:8px; background:#08050607;}
+
+  /* Column headings row */
+  .p2-section-title{font-family:Orbitron,"Segoe UI",sans-serif; font-size:9px; font-weight:700;
+                    text-transform:uppercase; letter-spacing:2px; color:var(--dim); padding:4px 0 2px;}
+
+  /* Responsive collapse */
+  @media(max-width:1200px){ .p2-row.r1{grid-template-columns:1fr 1fr;} .p2-row.r4{grid-template-columns:1fr 1fr;} }
+  @media(max-width:800px){ .p2-row.r1,.p2-row.r2,.p2-row.r3,.p2-row.r4{grid-template-columns:1fr;} }
+
+  /* ============================================================
+     FAULT INJECTION PANEL
+     ============================================================ */
+  #faultPanel{
+    background:var(--panel); border:1px solid #3a1419; border-radius:10px;
+    padding:12px 14px; position:relative; overflow:hidden;
+    box-shadow:0 0 24px rgba(255,45,62,.08);
+    margin-top:0; flex:0 0 auto;
+  }
+  #faultPanel::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg,transparent,#ff2e3f,transparent);
+  }
+  #faultPanel h2{
+    font-family:Orbitron,"Segoe UI",sans-serif; font-size:10px; font-weight:700;
+    text-transform:uppercase; letter-spacing:1.8px; color:#ff2e3f; margin-bottom:10px;
+    display:flex; align-items:center; gap:8px;
+  }
+  #faultPanel h2 .fp-badge{
+    font-size:9px; padding:2px 7px; border-radius:10px;
+    background:rgba(255,45,62,.15); border:1px solid #ff2e3f;
+    color:#ff2e3f; letter-spacing:.8px;
+  }
+  .fault-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  @media(max-width:900px){.fault-grid{grid-template-columns:1fr 1fr;}}
+  @media(max-width:560px){.fault-grid{grid-template-columns:1fr;}}
+
+  .fault-card{
+    background:#0d0507; border:1px solid #2a1419; border-radius:8px;
+    padding:10px 12px; display:flex; flex-direction:column; gap:8px;
+    position:relative; transition:border-color .2s;
+  }
+  .fault-card.active-fault{ border-color:#ff2e3f; box-shadow:0 0 14px rgba(255,45,62,.25); }
+  .fault-card .fc-title{
+    font-family:Orbitron,"Segoe UI",sans-serif; font-size:10px;
+    font-weight:700; letter-spacing:1px; color:#e8dcdc;
+    display:flex; align-items:center; gap:6px;
+  }
+  .fault-card .fc-icon{ font-size:15px; }
+  .fault-card .fc-desc{ font-size:11px; color:var(--dim); line-height:1.4; }
+  .fault-card .fc-slider-row{
+    display:flex; align-items:center; gap:8px;
+  }
+  .fault-card input[type=range]{
+    flex:1; -webkit-appearance:none; height:6px; border-radius:3px;
+    background:linear-gradient(90deg,#ff2e3f var(--pct,50%),#1e0d0f var(--pct,50%));
+    outline:none; cursor:pointer;
+  }
+  .fault-card input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:14px; height:14px;
+    border-radius:50%; background:#ff2e3f;
+    box-shadow:0 0 8px rgba(255,45,62,.6); cursor:pointer;
+  }
+  .fault-card .fc-pct{
+    font-family:Orbitron,monospace; font-size:12px; font-weight:700;
+    color:#ff2e3f; min-width:38px; text-align:right;
+  }
+  .fault-card .fc-inject-btn{
+    border:1px solid #ff2e3f; background:rgba(255,45,62,.1); color:#ff2e3f;
+    border-radius:6px; padding:5px 0; font-family:Orbitron,"Segoe UI",sans-serif;
+    font-size:10px; font-weight:700; letter-spacing:1.2px; cursor:pointer;
+    transition:background .15s;
+  }
+  .fault-card .fc-inject-btn:hover{ background:rgba(255,45,62,.28); }
+  .fault-card .fc-inject-btn:active{ background:rgba(255,45,62,.45); }
+  .fault-card .fc-inject-btn.injected{
+    border-color:var(--amber); background:rgba(255,176,46,.15); color:var(--amber);
+  }
+  .fp-clear-btn{
+    border:1px solid var(--green); background:rgba(62,207,111,.08); color:var(--green);
+    border-radius:6px; padding:6px 18px; font-family:Orbitron,"Segoe UI",sans-serif;
+    font-size:10px; font-weight:700; letter-spacing:1.2px; cursor:pointer;
+    transition:background .15s;
+  }
+  .fp-clear-btn:hover{ background:rgba(62,207,111,.22); }
+  #fpLog{
+    max-height:90px; overflow-y:auto; font-family:Consolas,monospace;
+    font-size:10.5px; color:var(--dim); background:#07030404;
+    border-radius:6px; border:1px solid #1a0d0f; padding:5px 8px;
+    display:flex; flex-direction:column; gap:3px;
+  }
+  #fpLog .fpl-entry{ display:flex; gap:6px; }
+  #fpLog .fpl-t{ color:#5c4348; white-space:nowrap; }
+  #fpLog .fpl-txt{ color:#e8dcdc; }
+  #fpLog .fpl-txt.ok{ color:var(--green); }
+  #fpLog .fpl-txt.warn{ color:var(--amber); }
+  #fpLog .fpl-txt.crit{ color:var(--red); }
+
+  /* AI response watch strip */
+  #aiWatchStrip{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:8px;
+  }
+  .aiw-card{
+    background:#0a0508; border:1px solid var(--line); border-radius:8px;
+    padding:8px 10px; position:relative; overflow:hidden;
+    transition:border-color .3s, box-shadow .3s;
+  }
+  .aiw-card.aiw-alert{
+    border-color:var(--red); box-shadow:0 0 18px rgba(255,77,77,.3);
+    animation:aiw-pulse 1.2s ease-in-out infinite;
+  }
+  .aiw-card.aiw-warn{
+    border-color:var(--amber); box-shadow:0 0 14px rgba(255,176,46,.2);
+  }
+  @keyframes aiw-pulse{
+    0%,100%{box-shadow:0 0 10px rgba(255,77,77,.2);}
+    50%{box-shadow:0 0 28px rgba(255,77,77,.6);}
+  }
+  .aiw-card .aiw-lbl{
+    font-size:9px; text-transform:uppercase; letter-spacing:1px;
+    color:var(--dim); margin-bottom:4px;
+  }
+  .aiw-card .aiw-val{
+    font-family:Orbitron,monospace; font-size:15px; font-weight:700; color:#fff;
+  }
+  .aiw-card .aiw-sub{ font-size:10px; color:var(--dim); margin-top:3px; }
 </style>
 </head>
 <body>
@@ -118,8 +328,15 @@
   <span class="chip mono" id="mode" style="background:#3a2b10;color:var(--amber)">MANUAL</span>
   <div class="grow"></div>
   <span class="chip mono" id="ohs" style="background:#12320f;color:var(--green)">--</span>
+  <nav class="page-nav">
+    <button class="pnav-btn active" id="pnav1">&#9660; OVERVIEW</button>
+    <button class="pnav-btn" id="pnav2">&#9650; TELEMETRY 3D</button>
+    <button class="pnav-btn" id="pnav3">&#9889; FAULT INJECT</button>
+  </nav>
 </header>
 
+<!-- ═══════════════════════════ PAGE 1 — OVERVIEW ═══════════════════════════ -->
+<div class="page active" id="page1">
 <div class="grid">
   <!-- LEFT: attitude + flight data -->
   <div class="col">
@@ -232,7 +449,249 @@ I only ever suggest: I have no link to the controls.</div>
       </div>
     </div>
   </div>
-</div>
+</div><!-- /.grid -->
+
+</div><!-- /#page1 -->
+
+<!-- ═══════════════════════════ PAGE 3 — FAULT INJECTION ═══════════════════════════ -->
+<div class="page" id="page3">
+<div id="faultPanel">
+  <h2>&#9889; FAULT INJECTION PANEL <span class="fp-badge">DEMO / TEST</span></h2>
+
+  <!-- AI response watch strip -->
+  <div id="aiWatchStrip">
+    <div class="aiw-card" id="aiw-ml">
+      <div class="aiw-lbl">ML Diagnosis</div>
+      <div class="aiw-val" id="aiw-ml-val">—</div>
+      <div class="aiw-sub" id="aiw-ml-sub">waiting…</div>
+    </div>
+    <div class="aiw-card" id="aiw-risk">
+      <div class="aiw-lbl">Fail Risk 60s</div>
+      <div class="aiw-val" id="aiw-risk-val">—</div>
+      <div class="aiw-sub" id="aiw-risk-sub">ML hazard model</div>
+    </div>
+    <div class="aiw-card" id="aiw-twin">
+      <div class="aiw-lbl">Twin Divergence</div>
+      <div class="aiw-val" id="aiw-twin-val">—</div>
+      <div class="aiw-sub" id="aiw-twin-sub">physics twin</div>
+    </div>
+    <div class="aiw-card" id="aiw-alert">
+      <div class="aiw-lbl">Latest AI Alert</div>
+      <div class="aiw-val" style="font-size:12px;" id="aiw-alert-val">—</div>
+      <div class="aiw-sub" id="aiw-alert-sub">—</div>
+    </div>
+  </div>
+
+  <!-- fault cards -->
+  <div class="fault-grid" style="margin-top:10px;">
+
+    <!-- Carb Ice -->
+    <div class="fault-card" id="fc-carb_ice">
+      <div class="fc-title"><span class="fc-icon">🧊</span> CARBURETTOR ICE</div>
+      <div class="fc-desc">Induction icing reduces power, roughens RPM. Apply carb heat to recover. ML watches EGT/CHT drops and RPM roughness.</div>
+      <div class="fc-slider-row">
+        <input type="range" min="0" max="100" value="70" id="sl-carb_ice" oninput="fpSlider('carb_ice',this)">
+        <span class="fc-pct" id="sv-carb_ice">70%</span>
+      </div>
+      <button class="fc-inject-btn" id="btn-carb_ice" onclick="fpInject('carb_ice')">&#9658; INJECT CARB ICE</button>
+    </div>
+
+    <!-- Oil Leak -->
+    <div class="fault-card" id="fc-oil_leak">
+      <div class="fc-title"><span class="fc-icon">🛢</span> OIL LEAK</div>
+      <div class="fc-desc">Oil drains continuously. Oil pressure drops, eventually seizing the engine. ML oil-residual and physics twin diverge early.</div>
+      <div class="fc-slider-row">
+        <input type="range" min="5" max="100" value="60" id="sl-oil_leak" oninput="fpSlider('oil_leak',this)">
+        <span class="fc-pct" id="sv-oil_leak">60%</span>
+      </div>
+      <button class="fc-inject-btn" id="btn-oil_leak" onclick="fpInject('oil_leak')">&#9658; INJECT OIL LEAK</button>
+    </div>
+
+    <!-- Stress / Abuse Damage -->
+    <div class="fault-card" id="fc-stress">
+      <div class="fc-title"><span class="fc-icon">🔥</span> STRESS DAMAGE</div>
+      <div class="fc-desc">Thermal & mechanical wear reduces power. Sustained high RPM + overtemp escalates to seizure. ML stress class activates.</div>
+      <div class="fc-slider-row">
+        <input type="range" min="0" max="95" value="50" id="sl-stress" oninput="fpSlider('stress',this)">
+        <span class="fc-pct" id="sv-stress">50%</span>
+      </div>
+      <button class="fc-inject-btn" id="btn-stress" onclick="fpInject('stress')">&#9658; INJECT STRESS</button>
+    </div>
+
+    <!-- Engine Seizure -->
+    <div class="fault-card" id="fc-seizure">
+      <div class="fc-title"><span class="fc-icon">💀</span> ENGINE SEIZURE</div>
+      <div class="fc-desc">Immediately kills the engine — total mechanical failure. ML class → "dead", fail risk → 100%, crash imminent without glide landing.</div>
+      <div class="fc-desc" style="color:var(--red);margin-top:-4px;">⚠ Irreversible — use CLEAR ALL to recover.</div>
+      <button class="fc-inject-btn" id="btn-seizure" onclick="fpInject('seizure')" style="margin-top:4px;">&#9658; TRIGGER SEIZURE</button>
+    </div>
+
+    <!-- Combined Ice + Leak -->
+    <div class="fault-card" id="fc-combo">
+      <div class="fc-title"><span class="fc-icon">⚡</span> COMBINED SCENARIO</div>
+      <div class="fc-desc">Injects both carb ice (60%) and oil leak (50% qty) simultaneously — tests the ML's ability to detect overlapping fault signatures.</div>
+      <button class="fc-inject-btn" id="btn-combo" onclick="fpInjectCombo()" style="margin-top:auto;">&#9658; INJECT COMBO</button>
+    </div>
+
+    <!-- Clear All -->
+    <div class="fault-card" id="fc-clear">
+      <div class="fc-title"><span class="fc-icon">✅</span> CLEAR ALL FAULTS</div>
+      <div class="fc-desc">Resets all fault channels to nominal. Engine restarts if seized. Watch ML classification return to "healthy" as sensors recover.</div>
+      <button class="fp-clear-btn" id="btn-clear" onclick="fpInject('clear_all')" style="margin-top:auto;width:100%;">&#9654; CLEAR ALL FAULTS</button>
+    </div>
+
+  </div>
+
+  <!-- injection log -->
+  <div style="margin-top:10px;font-size:10px;color:var(--dim);letter-spacing:.8px;text-transform:uppercase;margin-bottom:4px;">Injection Log</div>
+  <div id="fpLog"><div class="fpl-entry"><span class="fpl-t">--</span><span class="fpl-txt">Ready — inject a fault to observe AI response</span></div></div>
+</div><!-- /#faultPanel -->
+</div><!-- /#page3 -->
+
+<!-- ═══════════════════════════ PAGE 2 — ELABORATE 3D TELEMETRY ═══════════════════════════ -->
+<div class="page" id="page2">
+
+  <!-- KPI strip -->
+  <div class="p2-row r1">
+    <div class="kpi" style="--kc:var(--accent)">
+      <span class="kl">Airspeed (IAS)</span>
+      <span class="kv" id="p2ias">0</span>
+      <span class="ks">knots</span>
+    </div>
+    <div class="kpi" style="--kc:var(--violet)">
+      <span class="kl">Altitude MSL</span>
+      <span class="kv" id="p2alt">0</span>
+      <span class="ks">feet</span>
+    </div>
+    <div class="kpi" style="--kc:var(--green)">
+      <span class="kl">Ground Speed</span>
+      <span class="kv" id="p2gs">0</span>
+      <span class="ks">knots</span>
+    </div>
+    <div class="kpi" style="--kc:var(--amber)">
+      <span class="kl">V/S</span>
+      <span class="kv" id="p2vs">+0</span>
+      <span class="ks">ft/min</span>
+    </div>
+  </div>
+
+  <!-- Row 2: Attitude canvas + Engine 3D bars + Environment -->
+  <div class="p2-row r2">
+
+    <!-- Attitude (big ADI clone + numeric bars) -->
+    <div class="p2panel">
+      <h2>Attitude &amp; Orientation</h2>
+      <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;">
+        <div>
+          <canvas id="p2adi" width="220" height="220"></canvas>
+        </div>
+        <div style="flex:1;min-width:140px;">
+          <div class="bar3d-wrap" id="p2attbars"></div>
+          <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:6px;" id="p2attvals"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Engine 3D bars -->
+    <div class="p2panel">
+      <h2>Engine — 3D Parameter Bars</h2>
+      <div class="bar3d-wrap" id="p2engbars"></div>
+    </div>
+
+    <!-- Environment + GPS -->
+    <div class="p2panel">
+      <h2>Environment &amp; GPS</h2>
+      <div class="env-cards" id="p2envcards"></div>
+    </div>
+
+  </div>
+
+  <!-- Row 3: Sparkline history charts -->
+  <div class="p2-row r3">
+    <div class="p2panel">
+      <h2>Flight History — Speed &amp; Altitude</h2>
+      <div class="spark-wrap">
+        <canvas id="sparkFlight" height="130"></canvas>
+      </div>
+      <div class="spark-legend">
+        <div class="spark-leg-item"><div class="spark-leg-dot" style="background:#ff2e3f"></div>IAS (kt)</div>
+        <div class="spark-leg-item"><div class="spark-leg-dot" style="background:#9d7bff"></div>ALT / 100 (ft)</div>
+        <div class="spark-leg-item"><div class="spark-leg-dot" style="background:#3ecf6f"></div>Gnd Spd (kt)</div>
+      </div>
+    </div>
+    <div class="p2panel">
+      <h2>Engine History — Thermal &amp; Power</h2>
+      <div class="spark-wrap">
+        <canvas id="sparkEngine" height="130"></canvas>
+      </div>
+      <div class="spark-legend">
+        <div class="spark-leg-item"><div class="spark-leg-dot" style="background:#ff4d4d"></div>CHT (°C)</div>
+        <div class="spark-leg-item"><div class="spark-leg-dot" style="background:#ffb02e"></div>EGT / 10 (°C)</div>
+        <div class="spark-leg-item"><div class="spark-leg-dot" style="background:#3ecf6f"></div>Power (kW)</div>
+        <div class="spark-leg-item"><div class="spark-leg-dot" style="background:#9d7bff"></div>RPM / 100</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 4: 3D Gauges + AI health radar + Wind rose + Digital twin -->
+  <div class="p2-row r4">
+
+    <!-- 3D Semicircle gauges -->
+    <div class="p2panel">
+      <h2>3D Gauges</h2>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:center;">
+        <div class="gauge-wrap">
+          <canvas class="gauge-3d" id="gRPM" width="160" height="90"></canvas>
+          <div class="gauge-val" id="gRPMv">0</div>
+          <div class="gauge-unit">RPM</div>
+          <div class="gauge-label">Engine Speed</div>
+        </div>
+        <div class="gauge-wrap">
+          <canvas class="gauge-3d" id="gCHT" width="160" height="90"></canvas>
+          <div class="gauge-val" id="gCHTv">0</div>
+          <div class="gauge-unit">°C</div>
+          <div class="gauge-label">Cyl Head Temp</div>
+        </div>
+        <div class="gauge-wrap">
+          <canvas class="gauge-3d" id="gFuel" width="160" height="90"></canvas>
+          <div class="gauge-val" id="gFuelv">0</div>
+          <div class="gauge-unit">Litres</div>
+          <div class="gauge-label">Fuel Quantity</div>
+        </div>
+        <div class="gauge-wrap">
+          <canvas class="gauge-3d" id="gAoA" width="160" height="90"></canvas>
+          <div class="gauge-val" id="gAoAv">0</div>
+          <div class="gauge-unit">deg</div>
+          <div class="gauge-label">Angle of Attack</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI subsystem health radar -->
+    <div class="p2panel" style="display:flex;flex-direction:column;align-items:center;">
+      <h2>AI Health Radar</h2>
+      <canvas id="healthRadar" width="210" height="210"></canvas>
+      <div style="margin-top:8px;font-size:11px;color:var(--dim);text-align:center;max-width:200px;" id="p2radarLegend"></div>
+    </div>
+
+    <!-- Wind rose -->
+    <div class="p2panel" style="display:flex;flex-direction:column;align-items:center;">
+      <h2>Wind &amp; Heading Rose</h2>
+      <canvas id="windRose" width="190" height="190"></canvas>
+      <div style="margin-top:8px;font-size:11px;color:var(--dim);text-align:center;" id="p2windInfo">—</div>
+    </div>
+
+    <!-- Digital twin degradation 3D bars -->
+    <div class="p2panel">
+      <h2>Digital Twin — Degradation 3D</h2>
+      <div class="bar3d-wrap" id="p2twinbars"></div>
+      <div style="margin-top:10px;font-size:10.5px;color:var(--violet);font-family:Consolas,monospace;" id="p2twinml"></div>
+      <div style="margin-top:6px;font-size:10px;color:var(--dim);" id="p2twinrul"></div>
+    </div>
+
+  </div>
+
+</div><!-- /#page2 -->
 
 <footer>Piston-engine UAV simulator · telemetry streamed at 10 Hz over WebSocket · interactive 3D scene (software-rendered, offline) · the AI reads telemetry and answers/suggests — it is architecturally unable to actuate the aircraft.</footer>
 
@@ -1517,6 +1976,701 @@ document.querySelectorAll(".chip2").forEach(ch => ch.onclick = () => ask(ch.data
 
 connect();
 addMsg("sys", "Connecting to simulator — start the sim window if the dot stays red.");
+
+/* ================================================================
+   PAGE 2 — ALL JAVASCRIPT
+   ================================================================ */
+
+/* ---------- page switching ---------- */
+(function(){
+  const p1 = $("page1"), p2 = $("page2"), p3 = $("page3");
+  const b1 = $("pnav1"), b2 = $("pnav2"), b3 = $("pnav3");
+
+  function show(n){
+    p1.classList.toggle("active", n===1);
+    p2.classList.toggle("active", n===2);
+    p3.classList.toggle("active", n===3);
+    b1.classList.toggle("active", n===1);
+    b2.classList.toggle("active", n===2);
+    b3.classList.toggle("active", n===3);
+    if(n===2){ p2ResizeCharts(); renderPage2(); }
+  }
+  b1.onclick = () => show(1);
+  b2.onclick = () => show(2);
+  b3.onclick = () => show(3);
+})();
+
+/* ---------- history ring buffers (max 300 samples ≈ 30 s at 10 Hz) ---------- */
+const P2_MAX = 300;
+const p2hist = {
+  t:[],
+  ias:[], alt:[], gs:[], vs:[],
+  cht:[], egt:[], pwr:[], rpm:[],
+};
+function p2push(d){
+  const push = (arr, v) => { arr.push(v); if(arr.length > P2_MAX) arr.shift(); };
+  const pit = d.pitot, gps = d.gps, es = d.engine_sensors, eng = d.engine;
+  push(p2hist.t,   d.t_s);
+  push(p2hist.ias, pit.ias_mps * KT);
+  push(p2hist.alt, pit.baro_alt_msl_m * FT);
+  push(p2hist.gs,  gps.groundspeed_mps * KT);
+  push(p2hist.vs,  pit.vsi_mps * FPM);
+  push(p2hist.cht, es.cht_C);
+  push(p2hist.egt, es.egt_C);
+  push(p2hist.pwr, eng.power_kw);
+  push(p2hist.rpm, es.rpm);
+}
+
+/* hook into the existing ingest so page2 data updates live.
+   The original ws.onmessage closure calls the function-declaration `ingest`
+   by name, so we monkey-patch the socket handler directly instead. */
+function p2PatchWS(){
+  if(!ws) return;
+  if(ws._p2patched) return;
+  ws._p2patched = true;
+  const prev = ws.onmessage;
+  ws.onmessage = ev => {
+    lastRxMs = Date.now();
+    let m; try{ m = JSON.parse(ev.data); }catch(e){ return; }
+    if(m.type === "hello"){ hello = m; }
+    else if(m.type === "telemetry"){
+      D = m.d;
+      ingest(D);          // original page-1 rendering
+      p2push(D);          // feed page-2 history
+      if($("page2").classList.contains("active")) renderPage2();
+    }
+    else if(m.type === "ai_reply"){ addMsg("a", m.answer); }
+  };
+}
+/* patch the already-connected socket (connect() ran before this code) */
+setTimeout(p2PatchWS, 200);
+/* also patch on every future reconnect */
+const _p2origConnect = connect;
+window.connect = function(){
+  _p2origConnect();
+  setTimeout(p2PatchWS, 200);
+};
+
+/* ---------- helpers ---------- */
+const clr = {
+  green : "#3ecf6f", amber : "#ffb02e", red : "#ff4d4d",
+  accent: "#ff2e3f", violet: "#9d7bff", dim  : "#96858a",
+};
+function heatColor(frac){
+  if(frac < 0.5) return `hsl(${140 - frac*2*140},80%,48%)`;      // green → amber
+  return `hsl(${0},${70+frac*30}%,${55 - frac*10}%)`;            // amber → red
+}
+function p2barColor(frac, invert){
+  const f = invert ? 1 - frac : frac;
+  return heatColor(f);
+}
+function p2frac(v, mn, mx){ return Math.max(0, Math.min(1, (v - mn)/(mx - mn))); }
+
+/* ---------- 3D bar builder ---------- */
+function build3DBar(containerId, rows){
+  /* rows: [{id, label, frac, val, invert}] */
+  const el = $(containerId);
+  if(!el) return;
+  el.innerHTML = rows.map(r => {
+    const col = p2barColor(r.frac, r.invert);
+    return `<div class="bar3d-row">
+      <span class="lbl">${r.label}</span>
+      <div class="bar3d-track">
+        <div class="bar3d-fill" id="b3_${r.id}" style="width:${(r.frac*100).toFixed(1)}%;--gc:${col}"></div>
+      </div>
+      <span class="val" id="v3_${r.id}" style="color:${col}">${r.val}</span>
+    </div>`;
+  }).join("");
+}
+function update3DBar(id, frac, val, invert){
+  const b = $("b3_" + id), v = $("v3_" + id);
+  if(!b || !v) return;
+  const col = p2barColor(frac, invert);
+  b.style.width = (frac*100).toFixed(1) + "%";
+  b.style.setProperty("--gc", col);
+  v.style.color = col;
+  v.textContent = val;
+}
+
+/* ---------- semicircle 3D gauge ---------- */
+function drawGauge(canvasId, frac, color){
+  const c = $(canvasId); if(!c) return;
+  const x = c.getContext("2d"), W = c.width, H = c.height;
+  x.clearRect(0,0,W,H);
+  const cx = W/2, cy = H - 10, R = Math.min(W, H*2)/2 - 10;
+  const startA = Math.PI, sweepA = Math.PI;
+
+  /* outer rim shadow / depth ring */
+  const rimG = x.createLinearGradient(cx-R-6, cy, cx+R+6, cy);
+  rimG.addColorStop(0,   "rgba(255,255,255,.06)");
+  rimG.addColorStop(0.5, "rgba(255,255,255,.12)");
+  rimG.addColorStop(1,   "rgba(0,0,0,.4)");
+  x.beginPath(); x.arc(cx, cy, R+6, Math.PI, 2*Math.PI);
+  x.fillStyle = rimG; x.fill();
+
+  /* track */
+  x.beginPath(); x.arc(cx, cy, R, startA, startA + sweepA);
+  x.strokeStyle = "#1a0d0f"; x.lineWidth = 14; x.lineCap = "round"; x.stroke();
+
+  /* value arc with glow */
+  if(frac > 0.01){
+    x.shadowColor = color; x.shadowBlur = 18;
+    x.beginPath(); x.arc(cx, cy, R, startA, startA + sweepA*frac);
+    x.strokeStyle = color; x.lineWidth = 11; x.lineCap = "round"; x.stroke();
+    x.shadowBlur = 0;
+  }
+
+  /* tick marks */
+  for(let i = 0; i <= 10; i++){
+    const a = Math.PI + (i/10)*Math.PI;
+    const r1 = R - 16, r2 = i%5===0 ? R - 4 : R - 9;
+    x.beginPath();
+    x.moveTo(cx + Math.cos(a)*r1, cy + Math.sin(a)*r1);
+    x.lineTo(cx + Math.cos(a)*r2, cy + Math.sin(a)*r2);
+    x.strokeStyle = i%5===0 ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.2)";
+    x.lineWidth = i%5===0 ? 2 : 1;
+    x.stroke();
+  }
+
+  /* needle */
+  const na = Math.PI + sweepA * frac;
+  const nx = cx + Math.cos(na) * (R - 18), ny = cy + Math.sin(na) * (R - 18);
+  x.beginPath();
+  x.moveTo(cx + Math.cos(na+Math.PI/2)*5, cy + Math.sin(na+Math.PI/2)*5);
+  x.lineTo(nx, ny);
+  x.lineTo(cx + Math.cos(na-Math.PI/2)*5, cy + Math.sin(na-Math.PI/2)*5);
+  x.closePath();
+  x.fillStyle = "#fff"; x.shadowColor = "#fff"; x.shadowBlur = 8; x.fill();
+  x.shadowBlur = 0;
+
+  /* centre pivot */
+  const pivG = x.createRadialGradient(cx,cy,0,cx,cy,8);
+  pivG.addColorStop(0,"#fff"); pivG.addColorStop(1,"rgba(255,255,255,0)");
+  x.beginPath(); x.arc(cx,cy,7,0,7); x.fillStyle = pivG; x.fill();
+}
+
+/* ---------- ADI (page 2 clone) ---------- */
+function drawP2ADI(roll, pitch){
+  const c = $("p2adi"); if(!c) return;
+  const x = c.getContext("2d"), W = c.width, H = c.height;
+  const cx = W/2, cy = H/2, R = Math.min(W,H)/2 - 6;
+  x.clearRect(0,0,W,H);
+  x.save();
+  x.beginPath(); x.arc(cx,cy,R,0,7); x.clip();
+  const rp = pitch * 3.8;
+  x.translate(cx,cy); x.rotate(-roll*0.01745); x.translate(0,rp);
+  x.fillStyle="#0e1318"; x.fillRect(-2*R,-2.5*R,4*R,2.5*R);
+  x.fillStyle="#261416"; x.fillRect(-2*R,0,4*R,2.5*R);
+  x.strokeStyle="#fff"; x.lineWidth=2.5;
+  x.beginPath(); x.moveTo(-2*R,0); x.lineTo(2*R,0); x.stroke();
+  x.lineWidth=1.2; x.fillStyle="#fff"; x.font="13px Rajdhani,Consolas"; x.textAlign="center";
+  for(let pd=-40;pd<=40;pd+=10){
+    if(pd===0) continue;
+    const y=-pd*3.8, w=pd%20===0?60:30;
+    x.beginPath(); x.moveTo(-w,y); x.lineTo(w,y); x.stroke();
+    if(pd%20===0) x.fillText(pd,w+18,y+5);
+  }
+  x.restore();
+  /* roll arc */
+  x.strokeStyle="#2a1619"; x.lineWidth=3;
+  x.beginPath(); x.arc(cx,cy,R,0,7); x.stroke();
+  x.strokeStyle="#ccc";
+  for(let a=-60;a<=60;a+=10){
+    const rad=(a-90)*0.01745, r1=R-3, r2=R-(a%30===0?16:9);
+    x.lineWidth=a%30===0?2:1;
+    x.beginPath();
+    x.moveTo(cx+r1*Math.cos(rad),cy+r1*Math.sin(rad));
+    x.lineTo(cx+r2*Math.cos(rad),cy+r2*Math.sin(rad));
+    x.stroke();
+  }
+  /* roll pointer */
+  x.save(); x.translate(cx,cy); x.rotate(-roll*0.01745);
+  x.fillStyle="#ffb02e";
+  x.beginPath(); x.moveTo(0,-R+7); x.lineTo(-7,-R+20); x.lineTo(7,-R+20);
+  x.closePath(); x.fill();
+  x.restore();
+  /* wing bars */
+  x.strokeStyle="#ffd24a"; x.lineWidth=4; x.lineCap="round";
+  x.beginPath(); x.moveTo(cx-55,cy); x.lineTo(cx-15,cy); x.lineTo(cx-8,cy+7); x.stroke();
+  x.beginPath(); x.moveTo(cx+55,cy); x.lineTo(cx+15,cy); x.lineTo(cx+8,cy+7); x.stroke();
+  x.fillStyle="#ffd24a"; x.fillRect(cx-4,cy-3,8,6);
+  /* text overlay */
+  x.fillStyle="#e8dcdc"; x.font="13px Rajdhani,Consolas"; x.textAlign="left";
+  x.fillText(`φ ${roll.toFixed(1)}°  θ ${pitch.toFixed(1)}°`, 8, 18);
+}
+
+/* ---------- sparkline chart ---------- */
+function drawSparkline(canvasId, seriesArr){
+  /* seriesArr: [{data:[], color:"#hex", scale:1}] */
+  const c = $(canvasId); if(!c) return;
+  const rect = c.parentElement.getBoundingClientRect();
+  const W = Math.max(200, Math.round(rect.width));
+  if(c.width !== W) c.width = W;
+  const H = c.height;
+  const x = c.getContext("2d");
+  x.clearRect(0,0,W,H);
+  /* background */
+  const bg = x.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,"#0d0709"); bg.addColorStop(1,"#050304");
+  x.fillStyle = bg; x.fillRect(0,0,W,H);
+  /* grid lines */
+  x.strokeStyle = "rgba(255,255,255,.05)"; x.lineWidth = 1;
+  for(let i=1;i<4;i++){
+    x.beginPath(); x.moveTo(0,H*i/4); x.lineTo(W,H*i/4); x.stroke();
+  }
+  const n = P2_MAX;
+  seriesArr.forEach(s => {
+    const d = s.data.map(v => v * (s.scale||1));
+    if(d.length < 2) return;
+    const mn = Math.min(...d), mx = Math.max(...d);
+    const range = mx - mn || 1;
+    const sx = (i) => (i / (n-1)) * W;
+    const sy = (v) => H - 4 - ((v - mn) / range) * (H - 8);
+    /* fill under curve */
+    const grad = x.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0, s.color + "55");
+    grad.addColorStop(1, s.color + "00");
+    x.beginPath();
+    d.forEach((v,i2) => {
+      const xi = W - (d.length - 1 - i2) * W / (n-1);
+      i2===0 ? x.moveTo(xi,sy(v)) : x.lineTo(xi,sy(v));
+    });
+    x.lineTo(W, H); x.lineTo(W - (d.length-1)*W/(n-1), H); x.closePath();
+    x.fillStyle = grad; x.fill();
+    /* line */
+    x.beginPath();
+    d.forEach((v,i2) => {
+      const xi = W - (d.length - 1 - i2) * W / (n-1);
+      i2===0 ? x.moveTo(xi,sy(v)) : x.lineTo(xi,sy(v));
+    });
+    x.strokeStyle = s.color; x.lineWidth = 2; x.lineJoin = "round"; x.stroke();
+    /* latest value dot */
+    if(d.length > 0){
+      const lv = d[d.length-1];
+      x.beginPath(); x.arc(W, sy(lv), 4, 0, 7);
+      x.fillStyle = s.color; x.shadowColor = s.color; x.shadowBlur = 8; x.fill();
+      x.shadowBlur = 0;
+    }
+  });
+}
+
+/* ---------- health radar ---------- */
+function drawHealthRadar(canvasId, labels, scores){
+  const c = $(canvasId); if(!c) return;
+  const x = c.getContext("2d"), W = c.width, H = c.height;
+  x.clearRect(0,0,W,H);
+  const cx = W/2, cy = H/2, R = Math.min(W,H)/2 - 28;
+  const n = labels.length; if(!n) return;
+  const angle = i => (i/n)*Math.PI*2 - Math.PI/2;
+  /* rings */
+  for(let r=1;r<=4;r++){
+    x.beginPath();
+    for(let i=0;i<n;i++){
+      const a=angle(i), rv=R*r/4;
+      i?x.lineTo(cx+Math.cos(a)*rv,cy+Math.sin(a)*rv):x.moveTo(cx+Math.cos(a)*rv,cy+Math.sin(a)*rv);
+    }
+    x.closePath();
+    x.strokeStyle=`rgba(255,255,255,${0.04+r*0.03})`; x.lineWidth=1; x.stroke();
+  }
+  /* spokes */
+  x.strokeStyle="rgba(255,255,255,.1)"; x.lineWidth=1;
+  for(let i=0;i<n;i++){
+    const a=angle(i);
+    x.beginPath(); x.moveTo(cx,cy); x.lineTo(cx+Math.cos(a)*R,cy+Math.sin(a)*R); x.stroke();
+  }
+  /* filled area */
+  x.beginPath();
+  scores.forEach((s,i) => {
+    const a=angle(i), r=R*(s/100);
+    i?x.lineTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r):x.moveTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r);
+  });
+  x.closePath();
+  const avg = scores.reduce((a,b)=>a+b,0)/scores.length;
+  const radarCol = avg >= 80 ? "#3ecf6f" : avg >= 55 ? "#ffb02e" : "#ff4d4d";
+  x.fillStyle = radarCol + "44"; x.fill();
+  x.strokeStyle = radarCol; x.lineWidth = 2; x.stroke();
+  /* dots */
+  scores.forEach((s,i) => {
+    const a=angle(i), r=R*(s/100);
+    x.beginPath(); x.arc(cx+Math.cos(a)*r,cy+Math.sin(a)*r,4,0,7);
+    x.fillStyle=radarCol; x.shadowColor=radarCol; x.shadowBlur=8; x.fill(); x.shadowBlur=0;
+  });
+  /* labels */
+  x.fillStyle="#96858a"; x.font="10px Rajdhani,Consolas"; x.textAlign="center";
+  labels.forEach((l,i) => {
+    const a=angle(i), lx=cx+Math.cos(a)*(R+14), ly=cy+Math.sin(a)*(R+14);
+    x.fillText(l.toUpperCase(), lx, ly+4);
+  });
+}
+
+/* ---------- wind + heading rose ---------- */
+function drawWindRose(hdgDeg, windDirDeg, windSpd){
+  const c = $("windRose"); if(!c) return;
+  const x = c.getContext("2d"), W = c.width, H = c.height;
+  x.clearRect(0,0,W,H);
+  const cx = W/2, cy = H/2, R = Math.min(W,H)/2 - 12;
+  /* background disc */
+  const bg = x.createRadialGradient(cx,cy,0,cx,cy,R);
+  bg.addColorStop(0,"#151012"); bg.addColorStop(1,"#0a0708");
+  x.beginPath(); x.arc(cx,cy,R,0,7); x.fillStyle=bg; x.fill();
+  x.strokeStyle="#2a1619"; x.lineWidth=2; x.stroke();
+  /* cardinal ticks */
+  const cards = ["N","E","S","W"];
+  for(let i=0;i<36;i++){
+    const a=(i*10-90)*Math.PI/180;
+    const major=i%9===0, med=i%3===0;
+    const r1=R-2, r2=R-(major?16:med?9:5);
+    x.beginPath(); x.moveTo(cx+Math.cos(a)*r1,cy+Math.sin(a)*r1);
+    x.lineTo(cx+Math.cos(a)*r2,cy+Math.sin(a)*r2);
+    x.strokeStyle=major?"#e8dcdc":med?"#5a4348":"#2e1e22"; x.lineWidth=major?2:1; x.stroke();
+    if(major){
+      const li=i/9, la=(li*90-90)*Math.PI/180, lr=R-24;
+      x.fillStyle="#e8dcdc"; x.font="bold 13px Rajdhani,Consolas"; x.textAlign="center";
+      x.fillText(cards[li], cx+Math.cos(la)*lr, cy+Math.sin(la)*lr+5);
+    }
+  }
+  /* rings */
+  [R*0.35, R*0.65].forEach(r => {
+    x.beginPath(); x.arc(cx,cy,r,0,7);
+    x.strokeStyle="rgba(255,255,255,.07)"; x.lineWidth=1; x.stroke();
+  });
+  /* heading pointer (yellow) */
+  const ha=(hdgDeg-90)*Math.PI/180;
+  x.save(); x.translate(cx,cy); x.rotate(ha+Math.PI/2);
+  x.fillStyle="#ffd24a"; x.shadowColor="#ffd24a"; x.shadowBlur=12;
+  x.beginPath(); x.moveTo(0,-(R-10)); x.lineTo(-7,-(R-30)); x.lineTo(7,-(R-30)); x.closePath(); x.fill();
+  x.shadowBlur=0; x.restore();
+  /* wind pointer (blue/violet) */
+  if(windSpd > 0.3){
+    const wa=(windDirDeg-90)*Math.PI/180;
+    const wlen = Math.min(R*0.8, R*0.2 + windSpd*3);
+    x.save(); x.translate(cx,cy); x.rotate(wa+Math.PI/2);
+    x.strokeStyle="#9d7bff"; x.lineWidth=3; x.lineCap="round";
+    x.shadowColor="#9d7bff"; x.shadowBlur=10;
+    x.beginPath(); x.moveTo(0,0); x.lineTo(0,-wlen); x.stroke();
+    x.fillStyle="#9d7bff";
+    x.beginPath(); x.moveTo(0,-wlen); x.lineTo(-5,-wlen+12); x.lineTo(5,-wlen+12); x.closePath(); x.fill();
+    x.shadowBlur=0; x.restore();
+  }
+  /* centre */
+  x.beginPath(); x.arc(cx,cy,5,0,7);
+  x.fillStyle="#fff"; x.fill();
+  /* HDG label */
+  x.fillStyle="#ffd24a"; x.font="bold 12px Orbitron,Consolas"; x.textAlign="center";
+  x.fillText(String(Math.round(hdgDeg)).padStart(3,"0")+"°", cx, H-4);
+}
+
+/* ---------- resize sparkline canvases when page2 becomes visible ---------- */
+function p2ResizeCharts(){
+  ["sparkFlight","sparkEngine"].forEach(id => {
+    const c = $(id); if(!c) return;
+    const r = c.parentElement.getBoundingClientRect();
+    const W = Math.max(200, Math.round(r.width));
+    if(c.width !== W) c.width = W;
+  });
+}
+
+/* ---------- main page2 render call ---------- */
+let p2EngBuilt = false, p2TwinBuilt = false;
+function renderPage2(){
+  if(!D) return;
+  const pit = D.pitot, gps = D.gps, es = D.engine_sensors, eng = D.engine,
+        eu = D.state.euler, mc = D.manual_controls, tw = D.twin||null, ai = D.ai||null;
+  const ec = (hello && hello.engine_cfg) ||
+             {fuel_full_L:240, max_rpm:5800, max_power_kw:86, cht_max_c:240, egt_max_c:880};
+  const ft = eng.faults || {};
+  const roll  = eu[0]*57.2958, pitch = eu[1]*57.2958;
+  const hdg   = ((eu[2]*57.2958)%360+360)%360;
+
+  /* atmosphere — prefer named dict; fall back to wind_ned + ISA approximation */
+  const atm = D.atmosphere || (()=>{
+    const wn = D.wind_ned || [0,0,0];
+    const spd = Math.hypot(wn[0], wn[1]);
+    const dir = ((Math.atan2(-wn[1],-wn[0])*57.2958)+360)%360;
+    return {temp_C:null, pressure_Pa:null, rho_kgm3:null, wind_mps:spd, wind_dir_deg:dir};
+  })();
+
+  /* KPI strip */
+  $("p2ias").textContent = (pit.ias_mps*KT).toFixed(0);
+  $("p2alt").textContent = (pit.baro_alt_msl_m*FT).toFixed(0);
+  $("p2gs").textContent  = (gps.groundspeed_mps*KT).toFixed(0);
+  const vsv = pit.vsi_mps*FPM;
+  $("p2vs").textContent  = (vsv>=0?"+":"")+vsv.toFixed(0);
+
+  /* attitude ADI */
+  drawP2ADI(roll, pitch);
+
+  /* attitude 3D bars */
+  const attRows = [
+    {id:"roll",  label:"Roll",  frac:p2frac(Math.abs(roll),0,60),  val:roll.toFixed(1)+"°",  invert:false},
+    {id:"pitch", label:"Pitch", frac:p2frac(Math.abs(pitch),0,30), val:pitch.toFixed(1)+"°", invert:false},
+    {id:"hdg",   label:"HDG",   frac:hdg/360,                      val:String(Math.round(hdg)).padStart(3,"0")+"°", invert:false},
+    {id:"aoa",   label:"AoA",   frac:p2frac(Math.abs((D.aero.alpha_rad||0)*57.2958),0,15),
+                                val:((D.aero.alpha_rad||0)*57.2958).toFixed(1)+"°", invert:false},
+  ];
+  if(!p2EngBuilt){
+    build3DBar("p2attbars", attRows);
+  } else {
+    attRows.forEach(r => update3DBar(r.id, r.frac, r.val, r.invert));
+  }
+
+  /* attitude numeric mini-readouts */
+  $("p2attvals").innerHTML = [
+    ["Throttle", (mc.throttle*100).toFixed(0)+"%"],
+    ["Flaps",    mc.delta_flap_deg.toFixed(0)+"°"],
+    ["Gear",     mc.gear_down?"DOWN":"UP"],
+    ["Trim",     mc.delta_e_trim_deg.toFixed(1)+"°"],
+  ].map(([l,v])=>`<div class="ro"><div class="l">${l}</div><div class="v mono" style="font-size:14px">${v}</div></div>`).join("");
+
+  /* engine 3D bars */
+  const engRows = [
+    {id:"e_rpm",  label:"RPM",      frac:p2frac(es.rpm,0,ec.max_rpm),                  val:es.rpm.toFixed(0),          invert:false},
+    {id:"e_pwr",  label:"Power",    frac:p2frac(eng.power_kw,0,ec.max_power_kw),        val:eng.power_kw.toFixed(1)+" kW", invert:false},
+    {id:"e_fuel", label:"Fuel",     frac:p2frac(es.fuel_qty_L,0,ec.fuel_full_L),        val:es.fuel_qty_L.toFixed(1)+" L", invert:true},
+    {id:"e_ff",   label:"Fuel flow",frac:p2frac(es.fuel_flow_Lph,0,12),                 val:es.fuel_flow_Lph.toFixed(2)+" L/h", invert:false},
+    {id:"e_cht",  label:"CHT",      frac:p2frac(es.cht_C,40,ec.cht_max_c),              val:es.cht_C.toFixed(0)+" °C",  invert:false},
+    {id:"e_egt",  label:"EGT",      frac:p2frac(es.egt_C,100,ec.egt_max_c),             val:es.egt_C.toFixed(0)+" °C",  invert:false},
+    {id:"e_oil",  label:"Oil press",frac:p2frac(es.oil_psi,0,90),                       val:es.oil_psi.toFixed(1)+" psi",invert:true},
+    {id:"e_str",  label:"Stress",   frac:p2frac(ft.stress_pct||0,0,100),                val:(ft.stress_pct||0).toFixed(0)+"%", invert:false},
+    {id:"e_ice",  label:"Ice",      frac:p2frac(ft.ice_pct||0,0,100),                   val:(ft.ice_pct||0).toFixed(0)+"%",    invert:false},
+  ];
+  if(!p2EngBuilt){
+    build3DBar("p2engbars", engRows);
+    p2EngBuilt = true;
+  } else {
+    engRows.forEach(r => update3DBar(r.id, r.frac, r.val, r.invert));
+  }
+
+  /* environment cards */
+  $("p2envcards").innerHTML = [
+    ["AGL",       D.agl_m.toFixed(0)+" m",       "Height above ground"],
+    ["Heading",   String(Math.round(hdg)).padStart(3,"0")+"°", "Magnetic heading"],
+    ["Baro ALT",  (pit.baro_alt_msl_m*FT).toFixed(0)+" ft",   "Barometric altitude MSL"],
+    ["GPS Sats",  gps.satellites+" / HDOP "+gps.hdop.toFixed(2), gps.health+" fix"],
+    ["Temp",      (atm.temp_C!=null?atm.temp_C.toFixed(1):"--")+" °C", "ISA atmosphere"],
+    ["Pressure",  (atm.pressure_Pa!=null?(atm.pressure_Pa/100).toFixed(1):"--")+" hPa", "Static pressure"],
+    ["Wind Spd",  (atm.wind_mps!=null?atm.wind_mps.toFixed(1):"--")+" m/s", "Wind speed"],
+    ["Wind Dir",  (atm.wind_dir_deg!=null?atm.wind_dir_deg.toFixed(0):"--")+"°", "From direction"],
+  ].map(([l,v,s])=>`<div class="env-card">
+    <span class="ec-lbl">${l}</span>
+    <span class="ec-val">${v}</span>
+    <span class="ec-sub">${s}</span>
+  </div>`).join("");
+
+  /* sparklines */
+  drawSparkline("sparkFlight",[
+    {data:p2hist.ias,  color:"#ff2e3f", scale:1},
+    {data:p2hist.alt,  color:"#9d7bff", scale:0.01},
+    {data:p2hist.gs,   color:"#3ecf6f", scale:1},
+  ]);
+  drawSparkline("sparkEngine",[
+    {data:p2hist.cht,  color:"#ff4d4d", scale:1},
+    {data:p2hist.egt,  color:"#ffb02e", scale:0.1},
+    {data:p2hist.pwr,  color:"#3ecf6f", scale:1},
+    {data:p2hist.rpm,  color:"#9d7bff", scale:0.01},
+  ]);
+
+  /* 3D gauges */
+  drawGauge("gRPM",  p2frac(es.rpm,0,ec.max_rpm),             heatColor(p2frac(es.rpm,0,ec.max_rpm)));
+  drawGauge("gCHT",  p2frac(es.cht_C,40,ec.cht_max_c),        heatColor(p2frac(es.cht_C,40,ec.cht_max_c)));
+  drawGauge("gFuel", p2frac(es.fuel_qty_L,0,ec.fuel_full_L),  heatColor(1-p2frac(es.fuel_qty_L,0,ec.fuel_full_L)));
+  drawGauge("gAoA",  p2frac(Math.abs((D.aero.alpha_rad||0)*57.2958),0,15),
+                     heatColor(p2frac(Math.abs((D.aero.alpha_rad||0)*57.2958),0,15)));
+  $("gRPMv").textContent  = es.rpm.toFixed(0);
+  $("gCHTv").textContent  = es.cht_C.toFixed(0);
+  $("gFuelv").textContent = es.fuel_qty_L.toFixed(1);
+  $("gAoAv").textContent  = ((D.aero.alpha_rad||0)*57.2958).toFixed(1);
+
+  /* AI health radar */
+  if(ai && ai.subsystems){
+    const entries = Object.entries(ai.subsystems);
+    drawHealthRadar("healthRadar", entries.map(([k])=>k), entries.map(([,s])=>s.score));
+    $("p2radarLegend").textContent = "Overall: " + ai.overall.score.toFixed(0) + " — " + ai.overall.status;
+  }
+
+  /* wind rose */
+  const wDir = (atm && atm.wind_dir_deg!=null) ? atm.wind_dir_deg : 0;
+  const wSpd = (atm && atm.wind_mps!=null)     ? atm.wind_mps     : 0;
+  drawWindRose(hdg, wDir, wSpd);
+  $("p2windInfo").textContent =
+    `Wind ${wSpd.toFixed(1)} m/s from ${wDir.toFixed(0)}° · HDG ${String(Math.round(hdg)).padStart(3,"0")}°`;
+
+  /* digital twin degradation 3D bars */
+  if(tw){
+    const twinRows = [
+      {id:"tw_wear", label:"Wear",      frac:(tw.wear_pct||0)/100,                             val:(tw.wear_pct||0).toFixed(0)+"%",          invert:false},
+      {id:"tw_foul", label:"Fouling",   frac:(tw.fouling_pct||0)/100,                          val:(tw.fouling_pct||0).toFixed(0)+"%",        invert:false},
+      {id:"tw_oil",  label:"Oil health",frac:(tw.oil_health_pct==null?100:tw.oil_health_pct)/100, val:(tw.oil_health_pct==null?100:tw.oil_health_pct).toFixed(0)+"%", invert:true},
+      {id:"tw_pow",  label:"Eff. power",frac:(tw.power_est_pct==null?100:tw.power_est_pct)/100,   val:(tw.power_est_pct==null?100:tw.power_est_pct).toFixed(0)+"%",   invert:true},
+    ];
+    if(!p2TwinBuilt){
+      build3DBar("p2twinbars", twinRows);
+      p2TwinBuilt = true;
+    } else {
+      twinRows.forEach(r => update3DBar(r.id, r.frac, r.val, r.invert));
+    }
+    const ml = tw.ml||null;
+    $("p2twinml").textContent = ml && ml.available
+      ? `ML: ${ml.class} ${Math.round((ml.conf||0)*100)}% · fail risk ${Math.round((ml.fail_risk_60s||0)*100)}% · ${ml.learned_samples||0} samples`
+      : "ML: offline";
+    $("p2twinrul").textContent = tw.rul_h!=null
+      ? `RUL: ${tw.rul_h.toFixed(2)} h ±${Math.max(0,(tw.rul_hi||0)-tw.rul_h).toFixed(2)} · ${tw.synced?"TWIN SYNCED":"TWIN DIVERGING"}`
+      : "No active degradation detected";
+  }
+}
+/* end page2 JS */
+
+/* ================================================================
+   FAULT INJECTION PANEL — JS
+   ================================================================ */
+
+/* slider oninput: update label + CSS gradient */
+function fpSlider(id, el){
+  const mn = parseFloat(el.min), mx = parseFloat(el.max), v = parseFloat(el.value);
+  const pct = ((v - mn) / (mx - mn) * 100).toFixed(0);
+  $("sv-" + id).textContent = pct + "%";
+  el.style.setProperty("--pct", pct + "%");
+}
+/* initialise slider gradient on load */
+["carb_ice","oil_leak","stress"].forEach(id => {
+  const el = $("sl-" + id);
+  if(el) fpSlider(id, el);
+});
+
+function fpLog(txt, cls){
+  const log = $("fpLog");
+  if(!log) return;
+  if(log.querySelector(".fpl-entry span.fpl-txt")?.textContent === "Ready — inject a fault to observe AI response")
+    log.innerHTML = "";
+  const ts = D ? "T+" + D.t_s.toFixed(0) + "s" : "--";
+  const div = document.createElement("div");
+  div.className = "fpl-entry";
+  div.innerHTML = `<span class="fpl-t">${ts}</span><span class="fpl-txt ${cls||""}">${txt}</span>`;
+  log.prepend(div);
+  while(log.children.length > 20) log.lastChild.remove();
+}
+
+function fpInject(fault){
+  if(!ws || ws.readyState !== 1){
+    fpLog("Not connected — start the simulator first.", "warn"); return;
+  }
+  let value = 1.0;
+  const sl = $("sl-" + fault);
+  if(sl) value = parseFloat(sl.value) / 100.0;
+  ws.send(JSON.stringify({type:"fault_inject", fault, value}));
+  const btn = $("btn-" + fault);
+  if(btn){ btn.classList.add("injected"); setTimeout(() => btn.classList.remove("injected"), 2000); }
+  const fc = $("fc-" + fault);
+  if(fc){ fc.classList.add("active-fault"); }
+  const labels = {
+    carb_ice:"Carb ice injected at "+(value*100).toFixed(0)+"%",
+    oil_leak:"Oil leak — qty set to "+(value*100).toFixed(0)+"%",
+    stress:"Engine stress set to "+(value*100).toFixed(0)+"%",
+    seizure:"ENGINE SEIZED — watching AI response",
+    clear_all:"All faults cleared — engine restored",
+  };
+  const cls = fault==="clear_all"?"ok":fault==="seizure"?"crit":"warn";
+  fpLog(labels[fault]||fault, cls);
+  if(fault==="clear_all"){
+    ["carb_ice","oil_leak","stress","seizure","combo"].forEach(id => {
+      const c = $("fc-"+id); if(c) c.classList.remove("active-fault");
+    });
+  }
+}
+
+function fpInjectCombo(){
+  if(!ws || ws.readyState !== 1){
+    fpLog("Not connected.", "warn"); return;
+  }
+  ws.send(JSON.stringify({type:"fault_inject", fault:"carb_ice", value:0.60}));
+  ws.send(JSON.stringify({type:"fault_inject", fault:"oil_leak",  value:0.50}));
+  const btn = $("btn-combo");
+  if(btn){ btn.classList.add("injected"); setTimeout(() => btn.classList.remove("injected"), 2000); }
+  $("fc-carb_ice")?.classList.add("active-fault");
+  $("fc-oil_leak")?.classList.add("active-fault");
+  $("fc-combo")?.classList.add("active-fault");
+  fpLog("COMBO: carb ice 60% + oil leak 50% injected", "crit");
+}
+
+/* listen for fault_ack from server */
+const _fpOrigPatch = p2PatchWS;
+const _fpOrigWS = window.connect;
+function fpPatchWS(){
+  if(!ws || ws._fp_patched) return;
+  ws._fp_patched = true;
+  const prev = ws.onmessage;
+  ws.onmessage = ev => {
+    let m; try{ m = JSON.parse(ev.data); }catch(e){ return; }
+    if(m.type === "fault_ack"){
+      fpLog("Server ACK: " + m.fault + " = " + (m.value*100).toFixed(0) + "%", "ok");
+    } else if(prev) prev(ev);
+  };
+}
+setTimeout(fpPatchWS, 400);
+
+/* AI watch strip — update from live telemetry every frame */
+function fpUpdateWatch(){
+  if(!D) return;
+  const tw = D.twin||null, ai = D.ai||null;
+  const ml = tw && tw.ml ? tw.ml : null;
+
+  // ML diagnosis card
+  const mlCard = $("aiw-ml"), mlV = $("aiw-ml-val"), mlS = $("aiw-ml-sub");
+  if(mlV && ml){
+    if(!ml.available){ mlV.textContent="offline"; mlS.textContent=ml.reason||""; mlCard.className="aiw-card"; }
+    else if(ml.class==="warming"){ mlV.textContent="WARM-UP"; mlS.textContent="settling…"; mlCard.className="aiw-card"; }
+    else{
+      mlV.textContent = (ml.class||"—").toUpperCase();
+      mlS.textContent = "conf " + Math.round((ml.conf||0)*100) + "% · " + (ml.learned_samples||0) + " samples";
+      const isFault = ml.class && ml.class !== "healthy";
+      mlCard.className = "aiw-card" + (isFault && (ml.conf||0)>0.5 ? " aiw-alert" : "");
+    }
+  }
+
+  // fail risk card
+  const riskCard=$("aiw-risk"),riskV=$("aiw-risk-val"),riskS=$("aiw-risk-sub");
+  if(riskV && ml && ml.available){
+    const r = (ml.fail_risk_60s||0)*100;
+    riskV.textContent = r.toFixed(0) + "%";
+    riskV.style.color = r>60?"var(--red)":r>35?"var(--amber)":"var(--green)";
+    riskS.textContent = r>60?"CRITICAL":r>35?"WARNING":"nominal";
+    riskCard.className = "aiw-card" + (r>60?" aiw-alert":r>35?" aiw-warn":"");
+  }
+
+  // twin divergence card
+  const twCard=$("aiw-twin"),twV=$("aiw-twin-val"),twS=$("aiw-twin-sub");
+  if(twV && tw){
+    const div = (tw.divergence||0);
+    twV.textContent = div.toFixed(3);
+    twV.style.color = div>2?"var(--red)":div>1?"var(--amber)":"var(--green)";
+    twS.textContent = tw.synced?"SYNCED":"DIVERGING";
+    twCard.className = "aiw-card" + (!tw.synced && div>1.5?" aiw-alert":div>0.8?" aiw-warn":"");
+  }
+
+  // latest AI alert card
+  const alCard=$("aiw-alert"),alV=$("aiw-alert-val"),alS=$("aiw-alert-sub");
+  if(alV && ai && ai.alerts){
+    const alerts = Object.values(ai.alerts).filter(a=>a.sev!=="RESOLVED");
+    alerts.sort((a,b)=>b.t_s-a.t_s);
+    if(alerts.length){
+      const la = alerts[0];
+      alV.textContent = la.msg.slice(0,42)+(la.msg.length>42?"…":"");
+      alS.textContent = la.sev + " · T+" + la.t_s.toFixed(0) + "s";
+      alCard.className = "aiw-card" + (la.sev==="CRIT"?" aiw-alert":la.sev==="WARN"?" aiw-warn":"");
+    } else {
+      alV.textContent = "All nominal";
+      alS.textContent = "no active alerts";
+      alCard.className = "aiw-card";
+    }
+  }
+}
+
+/* hook fpUpdateWatch into the existing render loop */
+const _fpOrigRender2D = render2D;
+window.render2D = function(){
+  _fpOrigRender2D();
+  fpUpdateWatch();
+};
 </script>
 </body>
 </html>

@@ -39,8 +39,10 @@ REFIT_EVERY = 100         # samples between online re-fits
 ONLINE_PRIOR_LAM = 400.0  # strong prior anchor: adapt gently, never drift
 DEF_LOGIT_TEMP = 2.5      # used if the model file carries no calibrated value
 RISK_EMA_TAU = 4.0        # s — smooth the failure-risk signal
-WARMUP_S = 45.0           # cold-start transients poison the residuals —
-                          # same idea as the physics twin's warm-up gate
+WARMUP_S = 12.0           # reduced from 45 s — the pending-queue horizon (1 s)
+                          # plus one full RES_EMA cycle (~10 s) is enough for
+                          # the residuals to settle; 45 s was over-conservative
+                          # and made the ML appear broken for the first minute
 RES_CLIP = 1.5            # hard clamp on residuals: the linear behaviour
                           # model extrapolates wildly off-manifold, and an
                           # unclipped residual would swamp the classifier
@@ -107,10 +109,10 @@ class MLEngineMonitor:
         while self._pending and self._pending[0][0] <= 0:
             _, p, y_meas = self._pending.popleft()
             res_sample = np.clip(y_meas - p, -RES_CLIP, RES_CLIP)
-        if res_sample is not None and self._t >= WARMUP_S:
-            # residuals only enter the EMA once the engine has warmed: the
-            # cold-start fill transients otherwise bias every feature downstream
-            if self._res_ema is None:
+        if res_sample is not None:
+            # always accumulate residuals — even before the warm-up gate clears —
+            # so the EMA has already settled by the time classification starts
+            if self._res_ema is None or not np.any(self._res_ema):
                 self._res_ema = res_sample.copy()
             else:
                 k = 1.0 - math.exp(-dt / RES_EMA_TAU)
@@ -162,6 +164,7 @@ class MLEngineMonitor:
         if float(sensors.get("rpm", 0.0)) > idle * 0.8:
             self._onl_X.append(fv)
             self._onl_Y.append(y_now)
+            self.n_learned += 1          # count every live sample, not the window
             self._since_refit += 1
             if self._since_refit >= REFIT_EVERY and len(self._onl_X) >= 200:
                 X = np.array(self._onl_X)
@@ -169,7 +172,6 @@ class MLEngineMonitor:
                 self.behaviour.fit(X, Y, w_prior=self.behaviour_prior,
                                    prior_lam=ONLINE_PRIOR_LAM)
                 self._since_refit = 0
-                self.n_learned += len(X)
         return self._diag
 
     # ------------------------------------------------------------------ #
