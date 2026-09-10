@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 from simulator.config import AERO, AIRFRAME
 from simulator.aircraft.rigid_body import rot_ned_b
@@ -50,6 +52,18 @@ def compute_forces_and_moments(state, controls, rho_kgm3, wind_ned_mps, mass_kg,
     alpha = float(np.arctan2(w_air, u_air)) if abs(u_air) > 0.3 else 0.0
     beta = float(np.arcsin(np.clip(v_air / V_safe, -1.0, 1.0)))
 
+    # The coefficient model (CL/Cm slopes, stall envelope) is only calibrated
+    # for flow over the FRONT of the airframe (|alpha| < 90 deg). At rest or
+    # taxiing slower than the wind the relative flow comes from behind and
+    # alpha wraps to +/-180 deg; the linear Cm_alpha extrapolation then yields
+    # absurd pitching moments that toss a parked aircraft around. Fold the
+    # angle about +/-90 deg so the coefficients stay in the calibrated range,
+    # and keep the TRUE alpha for the force decomposition below so drag still
+    # opposes the actual relative motion.
+    alpha_c = alpha
+    if abs(alpha) > math.pi / 2.0:
+        alpha_c = math.copysign(math.pi - abs(alpha), alpha)
+
     q_dyn = 0.5 * rho_kgm3 * V_air * V_air
     S = AIRFRAME["S_wing_m2"]
     b = AIRFRAME["b_span_m"]
@@ -64,7 +78,7 @@ def compute_forces_and_moments(state, controls, rho_kgm3, wind_ned_mps, mass_kg,
     d_r = np.radians(controls["delta_r_deg"])
     d_flap = np.radians(controls["delta_flap_deg"])
 
-    CL = _lift_coeff(alpha, d_e, d_flap, q_hat)
+    CL = _lift_coeff(alpha_c, d_e, d_flap, q_hat)
     stall = alpha > AERO["alpha_stall_rad"] or alpha < AERO["alpha_neg_stall_rad"]
     CD = _drag_coeff(CL, d_flap, controls.get("gear_down", False), controls.get("brakes", False))
     CY = AERO["CY_beta_per_rad"] * beta + AERO["CY_delta_r_per_rad"] * d_r
@@ -76,7 +90,7 @@ def compute_forces_and_moments(state, controls, rho_kgm3, wind_ned_mps, mass_kg,
     )
     Cm = (
         AERO["Cm0"]
-        + AERO["Cm_alpha_per_rad"] * alpha
+        + AERO["Cm_alpha_per_rad"] * alpha_c
         + AERO["Cm_delta_e_per_rad"] * d_e
         + AERO["Cm_q_per_radps"] * q_hat
     )
