@@ -3,3 +3,12 @@ __pycache__/
 .venv/
 venv/
 .env
+
+# Editor and manual backups
+*.bak
+*.orig
+
+# Run output
+*.log
+telemetry_logs/
+</｜｜DSML｜｜ parameter>
