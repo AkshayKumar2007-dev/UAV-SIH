@@ -1,4 +1,5 @@
 import math
+import os
 import numpy as np
 
 G = 9.80665
@@ -17,6 +18,21 @@ TELEMETRY = {
     "ws_host": "127.0.0.1",
     "ws_port": 8765,
     "http_port": 8766,
+}
+
+# AI copilot LLM backend (OpenAI-compatible chat completions API).
+# Default points at a LOCAL Ollama instance so nothing ever leaves the
+# machine; any OpenAI-compatible endpoint works (OpenAI, OpenRouter, vLLM,
+# LM Studio, ...) by setting the env vars below. The simulator NEVER
+# requires the LLM: if it is unreachable the copilot silently falls back
+# to the offline rule engine.
+LLM = {
+    "base_url": os.environ.get("CYBERSPARKS_LLM_BASE",
+                                "http://127.0.0.1:11434/v1"),
+    "model": os.environ.get("CYBERSPARKS_LLM_MODEL", "qwen2.5:3b"),
+    "api_key": os.environ.get("CYBERSPARKS_LLM_KEY", ""),
+    "timeout_s": float(os.environ.get("CYBERSPARKS_LLM_TIMEOUT", "90")),
+    "suggest_interval_s": 15.0,   # min seconds between LLM suggestion drafts
 }
 
 HOME = {

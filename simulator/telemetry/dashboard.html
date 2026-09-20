@@ -72,6 +72,12 @@
   .chip2{font-size:11px; padding:3px 9px; border-radius:14px; border:1px solid var(--line);
          color:var(--accent); cursor:pointer; background:var(--panel2);}
   .chip2:hover{border-color:var(--accent);}
+  .badge{font-size:10px; font-weight:700; letter-spacing:.05em; padding:2px 8px;
+         border-radius:99px; vertical-align:middle; margin-left:7px; white-space:nowrap;}
+  .badge.llm{color:#0b0f14; background:#3ecf6f;}
+  .badge.rules{color:#0b0f14; background:#ffb02e;}
+  .badge.mcp{color:#0b0f14; background:var(--violet);}
+  .badge.probe{color:var(--dim); background:transparent; border:1px dashed var(--dim);}
   #inrow{display:flex; gap:7px;}
   #q{flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--txt);
      border-radius:8px; padding:8px 10px; outline:none;}
@@ -424,11 +430,11 @@
       <div class="ins-grid" id="ins"></div>
     </div>
     <div class="panel sugp">
-      <h2>AI suggestions</h2>
+      <h2>AI suggestions<span id="sugBadge" class="badge probe">…</span></h2>
       <div id="sugs"><div class="sug" style="border-left-color:var(--dim)"><span class="d">No suggestions — all monitored parameters nominal.</span></div></div>
     </div>
     <div class="panel" id="chat">
-      <h2>AI flight assistant — chat</h2>
+      <h2>AI flight assistant — chat<span id="aiBadge" class="badge probe">…</span></h2>
       <div id="msgs">
         <div class="msg a">AI assistant online. I watch your engine, fuel, flight envelope, navigation and
 sensors, and I answer with live data. Ask me anything — or tap a chip below.
@@ -723,10 +729,46 @@ function connect(){
   ws.onmessage = ev => {
     lastRxMs = Date.now();
     let m; try{ m = JSON.parse(ev.data); }catch(e){ return; }
-    if(m.type === "hello"){ hello = m; }
-    else if(m.type === "telemetry"){ D = m.d; ingest(D); }
+    if(m.type === "hello"){ hello = m; applyAiMeta(m.ai); }
+    else if(m.type === "telemetry"){ D = m.d; applyAiMeta(m.d.ai_meta); ingest(D); }
     else if(m.type === "ai_reply"){ addMsg("a", m.answer); }
   };
+}
+
+/* AI copilot status badge: MCP-published vs LLM vs offline rules, in chat +
+   suggestions headers. MCP wins when a bridge is attached, because it means
+   both panels are live-readable by external MCP agents. */
+function applyAiMeta(meta){
+  if(!meta || typeof meta !== "object") return;
+  const b = $("aiBadge"), sb = $("sugBadge");
+  const mcp = !!meta.mcp, probing = meta.status === "probing", llm = !!meta.llm;
+  const cls = "badge " + (mcp ? "mcp" : probing ? "probe" : llm ? "llm" : "rules");
+  if(b){
+    b.className = cls;
+    b.textContent = mcp ? "MCP · published" : probing ? "LLM probing…"
+                    : llm ? "LLM · " + (meta.model || "") : "offline rules";
+    b.title = mcp ? "Chat + suggestions are published over MCP (get_chat_log / get_ai_suggestions)" : "";
+  }
+  if(sb){
+    sb.className = cls;
+    sb.textContent = mcp ? "MCP" : probing ? "…" : llm ? "LLM-drafted" : "rules";
+    sb.title = mcp ? "Suggestion panel is readable by MCP agents (get_ai_suggestions)" : "";
+  }
+}
+
+/* Mirror the shared chat transcript into the chatbox: turns asked from an MCP
+   agent appear here, so dashboard and MCP see one conversation. The dashboard's
+   own questions are already rendered live via ai_reply, so they are skipped. */
+let lastChatSeq = 0;
+function syncChat(log){
+  if(!Array.isArray(log)) return;
+  log.forEach(turn => {
+    if(typeof turn.seq !== "number" || turn.seq <= lastChatSeq) return;
+    lastChatSeq = turn.seq;
+    if(turn.source === "dashboard") return;
+    if(turn.question) addMsg("u", "[MCP] " + turn.question);
+    if(turn.answer) addMsg("a", turn.answer);
+  });
 }
 
 function ingest(d){
@@ -746,6 +788,7 @@ function ingest(d){
   (d.ai && d.ai.alerts || []).forEach(a => {
     if(alertSeen.get(a.id) !== a.t_s){ alertSeen.set(a.id, a.t_s); pushAlert(a); }
   });
+  syncChat(d.ai_chat);
   render2D();
   if($("wrap2d").style.display !== "none" && D){
     drawMap(((D.state.euler[2]*57.2958)%360+360)%360);
@@ -1092,14 +1135,54 @@ function drawMap(hdg){
    World frame: x = East, y = Up, z = North.  Altitudes relative to 225 m.
    ================================================================= */
 const T3 = (() => {
-  const BASE = 225, BUMPS = 35, RAD = 6000;
-  function terrAlt(n, e){
+  const BASE = 225;                 // altitude datum for the scene (WORLD base)
+  /* Rolling ground, mountains, flatten zones and the lake basin — mirrors
+     WorldTerrain.altitude_msl_at so the scene agrees with the physics and
+     collision model. Returns height ABOVE the 225 m base datum. */
+  function naturalRel(n, e){
+    const w = (hello && hello.world) || {};
+    const BUMPS = w.terrain_bumps_m || 35;
+    const RAD = w.terrain_radius_n_m || 14000;
     const r = Math.hypot(n, e) / RAD;
-    const bowl = BUMPS*0.6*Math.pow(Math.max(r-0.4, 0), 2);
-    const h1 = BUMPS*0.55*Math.sin(n*0.0012+0.4)*Math.cos(e*0.0015-0.1);
-    const h2 = BUMPS*0.35*Math.sin(n*0.004+1.8)*Math.cos(e*0.003+0.7);
-    const h3 = BUMPS*0.22*Math.sin((n+e)*0.0028+2.3);
-    return BASE + bowl + h1 + h2 + h3 - BASE;
+    return BUMPS*0.6*Math.pow(Math.max(r-0.4, 0), 2)
+      + BUMPS*0.55*Math.sin(n*0.0012+0.4)*Math.cos(e*0.0015-0.1)
+      + BUMPS*0.35*Math.sin(n*0.004+1.8)*Math.cos(e*0.003+0.7)
+      + BUMPS*0.22*Math.sin((n+e)*0.0028+2.3);
+  }
+  function smoothstep(t){ t = Math.max(0, Math.min(1, t)); return t*t*(3 - 2*t); }
+  function terrAlt(n, e){
+    const w = (hello && hello.world) || {};
+    let h = naturalRel(n, e);
+    // mountains: gaussian peaks — previously omitted, so the scene showed
+    // flat ground where the flight model has a 300-430 m obstacle
+    for(const m of (w.mountains || [])){
+      const d = Math.hypot(n - m.n, e - m.e);
+      if(d < m.radius_m*3) h += m.h_m*Math.exp(-2.2*Math.pow(d/m.radius_m, 2));
+    }
+    // airport + outlying dirt-strip flatten zones
+    const ap = w.airport || {};
+    const zones = [];
+    const fr = ap.flatten_radius_m || 0;
+    if(fr > 0) zones.push([0, 0, fr, ap.flatten_inner_m || fr*0.5, naturalRel(0, 0)]);
+    for(const st of (w.airstrips || []))
+      zones.push([st.n, st.e, 550, 250, naturalRel(st.n, st.e)]);
+    for(const z of zones){
+      const d = Math.hypot(n - z[0], e - z[1]);
+      if(d < z[2]){
+        const t = smoothstep((z[2] - d) / Math.max(z[2] - z[3], 1));
+        h = h*(1 - t) + z[4]*t;
+      }
+    }
+    // lake basin: depress the ground to the water level
+    const lk = w.lake;
+    if(lk){
+      const d = Math.hypot(n - lk.n, e - lk.e);
+      if(d < lk.radius_m*1.15){
+        const t = smoothstep((lk.radius_m*1.15 - d) / (lk.radius_m*0.35));
+        h = h*(1 - t) + (naturalRel(lk.n, lk.e) - 6)*t;
+      }
+    }
+    return h;
   }
 
   // ---- terrain mesh (flight area ±9 km) — built lazily once hello arrives ----
@@ -2032,9 +2115,10 @@ function p2PatchWS(){
   ws.onmessage = ev => {
     lastRxMs = Date.now();
     let m; try{ m = JSON.parse(ev.data); }catch(e){ return; }
-    if(m.type === "hello"){ hello = m; }
+    if(m.type === "hello"){ hello = m; applyAiMeta(m.ai); }
     else if(m.type === "telemetry"){
       D = m.d;
+      applyAiMeta(m.d.ai_meta);
       ingest(D);          // original page-1 rendering
       p2push(D);          // feed page-2 history
       if($("page2").classList.contains("active")) renderPage2();

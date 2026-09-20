@@ -13,6 +13,7 @@ import asyncio
 import json
 import os
 import threading
+from collections import deque
 import numpy as np
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -94,9 +95,14 @@ class TelemetryServer:
         self.hz = hz or TELEMETRY_HZ
         self._latest = None          # last jsonable snapshot (set from sim thread)
         self._clients = set()
-        self._query_handler = None   # fn(text) -> str, executed on ws thread
+        self._query_handler = None   # fn(text) -> str, executed in an executor
         self._reset_handler = None   # fn() -> None, human-initiated sim reset
         self._fault_handler = None   # fn(fault, value) -> None, fault injection
+        self._ai_meta = {}           # AI copilot status, forwarded to the page
+        self._mcp_links = set()      # websocket links announced as MCP bridges
+        self._chat_log = deque(maxlen=100)   # recent assistant Q&A turns
+        self._chat_seq = 0
+        self._chat_lock = threading.Lock()
         self._loop = None
         self._started = False
         self.http = _DashboardHTTP(self.http_port)
@@ -112,7 +118,11 @@ class TelemetryServer:
 
     def publish(self, snapshot):
         """Called from the sim loop every render tick (throttled to hz)."""
-        self._latest = jsonable(snapshot)
+        snap = dict(snapshot)
+        snap["ai_meta"] = self._meta()
+        with self._chat_lock:
+            snap["ai_chat"] = list(self._chat_log)
+        self._latest = jsonable(snap)
 
     def set_query_handler(self, fn):
         self._query_handler = fn
@@ -126,6 +136,16 @@ class TelemetryServer:
         """Fault injection: fn(fault_name, value) called from the WS thread.
         Allowed fault names: carb_ice, oil_leak, stress, seizure, clear_all."""
         self._fault_handler = fn
+
+    def set_ai_meta(self, meta):
+        """AI copilot status (LLM vs rules) for the dashboard badge."""
+        self._ai_meta = meta or {}
+
+    def _meta(self):
+        """AI status plus the live MCP-bridge link flag for the headers."""
+        m = dict(self._ai_meta or {})
+        m["mcp"] = bool(self._mcp_links)
+        return m
 
     @property
     def url(self):
@@ -163,7 +183,13 @@ class TelemetryServer:
                         "lake": WORLD.get("lake", None),
                         "roads": WORLD.get("roads", []),
                         "airstrips": WORLD.get("airstrips", []),
+                        # terrain constants so the client terrain function
+                        # mirrors WorldTerrain instead of hard-coding them
+                        "terrain_radius_n_m": WORLD.get("terrain_radius_n_m"),
+                        "terrain_bumps_m": WORLD.get("terrain_bumps_m"),
+                        "terrain_base_alt_msl_m": WORLD.get("terrain_base_alt_msl_m"),
                     }),
+                    "ai": jsonable(self._meta()),
                     "hz": self.hz,
                 }
                 await ws.send(json.dumps(hello))
@@ -175,6 +201,7 @@ class TelemetryServer:
                 pass
             finally:
                 self._clients.discard(ws)
+                self._mcp_links.discard(ws)
 
         async def broadcaster():
             period = 1.0 / self.hz
@@ -210,17 +237,17 @@ class TelemetryServer:
         except (ValueError, TypeError):
             return
         mtype = msg.get("type")
-        if mtype == "ai_query":
+        if mtype == "client_hello":
+            # an MCP bridge announces itself so the dashboard can show that
+            # its chat and suggestions are being published over MCP
+            if msg.get("role") == "mcp":
+                self._mcp_links.add(ws)
+        elif mtype == "ai_query":
+            # Answer on an executor thread: an LLM call can take seconds and
+            # must never stall the telemetry broadcast or other clients.
             text = str(msg.get("text", ""))[:500]
-            if self._query_handler is None:
-                answer = "Assistant not connected to the simulator yet."
-            else:
-                try:
-                    answer = str(self._query_handler(text))
-                except Exception as ex:
-                    answer = f"Assistant error: {ex}"
-            pkt = json.dumps({"type": "ai_reply", "question": text, "answer": answer})
-            asyncio.ensure_future(self._safe_send(ws, pkt))
+            source = "mcp" if msg.get("source") == "mcp" else "dashboard"
+            asyncio.ensure_future(self._answer_query(ws, text, source))
         elif mtype == "sim_reset":
             # human-initiated simulator reset (R key / RESET SIM button)
             if self._reset_handler is not None:
@@ -242,6 +269,32 @@ class TelemetryServer:
                 except Exception as ex:
                     print("[telemetry] fault inject error:", ex)
         # NOTE: any other message type is ignored by design.
+
+    async def _answer_query(self, ws, text, source="dashboard"):
+        """Run the query handler off the event loop, then reply.
+
+        Every turn — whether it came from the dashboard chatbox or an MCP
+        agent — is appended to one shared transcript, so both front-ends see
+        the same conversation."""
+        loop = asyncio.get_event_loop()
+        try:
+            if self._query_handler is None:
+                answer = "Assistant not connected to the simulator yet."
+            else:
+                answer = str(await loop.run_in_executor(
+                    None, self._query_handler, text))
+        except Exception as ex:
+            answer = f"Assistant error: {ex}"
+        with self._chat_lock:
+            self._chat_seq += 1
+            t_s = self._latest.get("t_s") if self._latest else None
+            self._chat_log.append({"seq": self._chat_seq, "t_s": t_s,
+                                   "source": source, "question": text,
+                                   "answer": answer})
+            seq = self._chat_seq
+        pkt = json.dumps({"type": "ai_reply", "seq": seq, "source": source,
+                          "question": text, "answer": answer})
+        await self._safe_send(ws, pkt)
 
     async def _safe_send(self, ws, pkt):
         try:

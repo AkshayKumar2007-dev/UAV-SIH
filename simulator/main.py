@@ -23,7 +23,8 @@ from simulator.sensors.imu import IMU
 from simulator.sensors.pitot import PitotStatic
 from simulator.sensors.engine_sensors import EngineSensors
 from simulator.flight_controller.autopilot import Autopilot
-from simulator.ai_advisor.monitor import HealthMonitor, PilotAssistant
+from simulator.ai_advisor.monitor import HealthMonitor
+from simulator.ai_advisor.llm import LlmCopilot
 from simulator.ai_advisor.twin import EngineDigitalTwin
 from simulator.telemetry.server import TelemetryServer
 from simulator.mavlink_interface import MavlinkInterface
@@ -114,7 +115,8 @@ def _screen_click_to_ned(pos, ac_pos_ned, scale):
     return n, e
 
 
-def main(scenario_path=None, mavlink_url=None, mavlink_commands=False):
+def main(scenario_path=None, mavlink_url=None, mavlink_commands=False,
+         llm_url=None, llm_model=None, llm_enabled=True):
     # Apply the scenario BEFORE any object reads config: RigidBody6DOF copies
     # INITIAL_CONDITIONS in its constructor, so a late apply would be ignored.
     if scenario_path:
@@ -154,15 +156,19 @@ def main(scenario_path=None, mavlink_url=None, mavlink_commands=False):
 
     # AI flight assistant (suggestions only — no control path) + telemetry page
     advisor = HealthMonitor()
-    assistant = PilotAssistant()
+    # LLM copilot: OpenAI-compatible endpoint with an offline-rules fallback.
+    # With no endpoint configured/reachable it behaves exactly like the old
+    # rule engine, so the sim is fully usable with zero external services.
+    copilot = LlmCopilot(base_url=llm_url, model=llm_model, enabled=llm_enabled)
     twin = EngineDigitalTwin()
     server = TelemetryServer()
+    server.set_ai_meta(copilot.meta())
 
     def _on_ai_query(text):
         snap = server.latest_snapshot
         if not snap:
             return "No telemetry received yet — start flying first."
-        return assistant.answer(text, snap, snap.get("ai") or {})
+        return copilot.answer(text, snap, snap.get("ai") or {})
 
     server.set_query_handler(_on_ai_query)
     server.start()
@@ -220,7 +226,9 @@ def main(scenario_path=None, mavlink_url=None, mavlink_commands=False):
     print("=" * 64)
     print("  Telemetry dashboard (3D):  http://127.0.0.1:8766")
     print("  WebSocket stream:          ws://127.0.0.1:8765")
-    print("  AI assistant: SUGGESTIONS ONLY — it cannot fly the UAV.")
+    print("  AI copilot: " + (f"LLM ({copilot.model}) @ {copilot.base_url}"
+                             if llm_enabled else "offline rules")
+          + " — SUGGESTIONS ONLY, it cannot fly the UAV.")
     print("=" * 64)
 
     last_time = time.time()
@@ -604,6 +612,11 @@ def main(scenario_path=None, mavlink_url=None, mavlink_commands=False):
                     assessment = advisor.dead_assessment(t_s, crash_state["reason"])
                 else:
                     assessment = advisor.update(sim_s)
+                # LLM-drafted suggestions when available (non-blocking; the
+                # panel keeps rule suggestions until a draft lands).
+                assessment["suggestions"] = copilot.refresh_suggestions(
+                    assessment, sim_s)
+                server.set_ai_meta(copilot.meta())
                 sim_s["ai"] = assessment
                 for a in assessment["new_alerts"]:
                     renderer.log_advisory(a["sev"], a["msg"], t_s)
@@ -635,6 +648,17 @@ if __name__ == "__main__":
         "--mavlink-commands", action="store_true",
         help="ALSO accept commands (arm/disarm, mode changes, manual control) "
              "from the ground station — requires --mavlink")
+    _parser.add_argument(
+        "--llm-url", metavar="URL", default=None,
+        help="OpenAI-compatible chat-completions base URL for the AI copilot "
+             "(default: local Ollama http://127.0.0.1:11434/v1; falls back "
+             "to the offline rules if unreachable)")
+    _parser.add_argument(
+        "--llm-model", metavar="NAME", default=None,
+        help="model name to use, e.g. qwen2.5:3b (default from config/env)")
+    _parser.add_argument(
+        "--no-llm", action="store_true",
+        help="disable the LLM copilot and use the offline rule engine only")
     _args = _parser.parse_args()
 
     if _args.mavlink_commands and not _args.mavlink:
@@ -648,4 +672,6 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     main(_args.scenario, mavlink_url=_args.mavlink,
-         mavlink_commands=_args.mavlink_commands)
+         mavlink_commands=_args.mavlink_commands,
+         llm_url=_args.llm_url, llm_model=_args.llm_model,
+         llm_enabled=not _args.no_llm)

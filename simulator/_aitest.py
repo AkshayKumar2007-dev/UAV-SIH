@@ -114,15 +114,44 @@ async def client():
         f"got_tel={bool(got_tel)}, ai={'ai' in (got_tel or {})}, "
         f"overall={ (got_tel or {}).get('ai', {}).get('overall') if got_tel else None}")
         assert got_tel["ai"]["advisory_only"] is True
+        assert isinstance(got_tel.get("ai_chat"), list), "telemetry must carry the chat transcript"
         await ws.send(json.dumps({"type": "ai_query", "text": "status"}))
+        reply = None
         for _ in range(50):
             msg = json.loads(await asyncio.wait_for(ws.recv(), timeout=3))
             if msg["type"] == "ai_reply":
-                return got_tel, msg
-        raise AssertionError("no ai_reply")
-tel, reply = asyncio.new_event_loop().run_until_complete(asyncio.wait_for(client(), timeout=10))
+                reply = msg
+                break
+        assert reply is not None, "no ai_reply"
+        # an MCP-flagged query is tagged in the shared transcript
+        await ws.send(json.dumps({"type": "client_hello", "role": "mcp"}))
+        await ws.send(json.dumps({"type": "ai_query", "text": "engine temps",
+                                  "source": "mcp"}))
+        mcp_reply = None
+        for _ in range(50):
+            msg = json.loads(await asyncio.wait_for(ws.recv(), timeout=3))
+            if msg["type"] == "ai_reply" and msg.get("source") == "mcp":
+                mcp_reply = msg
+                break
+        assert mcp_reply is not None, "no MCP-tagged ai_reply"
+        # this harness publishes manually, so surface the updated transcript
+        # the way the real sim loop does on its next render tick
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None, lambda: srv.publish({**make_snap(1.0), "ai": a2}))
+        for _ in range(50):
+            msg = json.loads(await asyncio.wait_for(ws.recv(), timeout=3))
+            if msg["type"] == "telemetry":
+                chat = msg["d"].get("ai_chat") or []
+                meta = msg["d"].get("ai_meta") or {}
+                if any(t.get("source") == "mcp" for t in chat):
+                    assert meta.get("mcp") is True, meta
+                    return got_tel, reply, chat
+        raise AssertionError("MCP turn never appeared in the shared chat log")
+tel, reply, chat = asyncio.new_event_loop().run_until_complete(asyncio.wait_for(client(), timeout=10))
 print("4. WS round-trip OK  packet keys:", sorted(tel.keys())[:8], "...")
 print("   ai_reply:", reply["answer"][:90])
+print("   shared chat log OK (%d turns, MCP turn present)" % len(chat))
 
 # ---- 5. HTTP dashboard ----
 import urllib.request
